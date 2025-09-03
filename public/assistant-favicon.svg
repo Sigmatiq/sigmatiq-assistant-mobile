@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#0F1A1A"/>
+  <!-- Chat bubble pixels -->
+  <rect x="6" y="7" width="6" height="6" rx="1.5" fill="#1ABC9C"/>
+  <rect x="13" y="7" width="6" height="6" rx="1.5" fill="#1ABC9C"/>
+  <rect x="20" y="7" width="6" height="6" rx="1.5" fill="#1ABC9C"/>
+  <rect x="6" y="14" width="6" height="6" rx="1.5" fill="#48C9B0" opacity="0.6"/>
+  <rect x="13" y="14" width="6" height="6" rx="1.5" fill="#F59E0B"/>
+  <rect x="20" y="14" width="6" height="6" rx="1.5" fill="#48C9B0" opacity="0.6"/>
+  <rect x="6" y="21" width="6" height="6" rx="1.5" fill="#16A085"/>
+  <rect x="13" y="21" width="6" height="6" rx="1.5" fill="#16A085"/>
+  <rect x="20" y="21" width="6" height="6" rx="1.5" fill="#16A085"/>
+</svg>
+
