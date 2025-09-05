@@ -21,7 +21,7 @@ const ClickableEntity: React.FC<ClickableEntityProps> = ({
   className = '',
   onClick
 }) => {
-  const { setSelectedSymbol, setActiveView } = useAppStore();
+  const { setSelectedSymbol, setActiveView, setActiveHelper, setHelperContext } = useAppStore();
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,7 +36,9 @@ const ClickableEntity: React.FC<ClickableEntityProps> = ({
     switch (type) {
       case 'symbol':
         setSelectedSymbol(value);
-        // Could also trigger panel or navigation
+        // Launch StockInfoHelper with the symbol
+        setActiveHelper('stockInfo');
+        setHelperContext({ symbol: value, source: 'search' });
         break;
       case 'indicator':
         // TODO: Add indicator to current context

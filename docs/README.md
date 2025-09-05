@@ -1,4 +1,4 @@
-# SIGMATIQ Assistant UI-V2 Documentation
+# SIGMATIQ Assistant Mobile UI Documentation
 
 ## Overview
 SIGMATIQ Assistant is an **analysis-only** trading application focused on market research, technical analysis, and stock discovery. This is a mobile-first, responsive web application built with modern React.
@@ -16,24 +16,31 @@ SIGMATIQ Assistant is an **analysis-only** trading application focused on market
 4. **Progressive Disclosure** - Simple by default, advanced on demand
 
 ## Tech Stack
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS v3
-- **State**: Zustand
-- **Data Fetching**: TanStack Query
-- **Icons**: Lucide React
-- **Backend**: FastAPI (Python) on port 8050
+- **Frontend**: React 19.1.1 + TypeScript 5.8.3
+- **Build Tool**: Vite 7.1.2
+- **Styling**: Tailwind CSS 3.4.17
+- **State**: Zustand 5.0.8
+- **Data Fetching**: TanStack Query 5.85.9
+- **HTTP Client**: Axios 1.11.0
+- **Icons**: Lucide React 0.542.0
+- **Animations**: Framer Motion 12.23.12
+- **UI Primitives**: Radix UI
+- **Real-time**: Socket.io Client 4.8.1
+- **Backend**: Sigmatiq Assistant API on port 8050
 
 ## Project Structure
 ```
-ui-v2/
+sigmatiq-assistant-mobile/
 ├── src/
+│   ├── api/            # API client, types, and queries
 │   ├── components/     # Reusable components
-│   ├── pages/          # Page components
-│   ├── api/            # API client and queries
-│   ├── stores/         # Zustand stores
+│   ├── pages/          # Page components (Dashboard, Chat)
+│   ├── stores/         # Zustand state management
 │   ├── styles/         # Theme and global styles
-│   └── hooks/          # Custom React hooks
+│   ├── assets/         # Static assets
+│   ├── App.tsx         # Main app component
+│   ├── main.tsx        # Entry point
+│   └── index.css       # Global CSS with Tailwind
 ├── docs/
 │   ├── architecture/   # System design docs
 │   ├── decisions/      # ADRs and design decisions
@@ -44,9 +51,12 @@ ui-v2/
 
 ## Getting Started
 ```bash
-cd products/sigma-assistant/ui-v2
+cd sigmatiq-assistant-mobile
 npm install
 npm run dev  # Runs on port 3001 (or next available)
+
+# Or using make from root:
+make assistant-ui-v2
 ```
 
 ## Documentation Index

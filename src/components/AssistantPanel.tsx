@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { 
   X, 
   ChevronUp, 
@@ -12,10 +12,41 @@ import {
   Sparkles,
   BarChart3,
   Brain,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
 import useAppStore from '../stores/useAppStore';
+
+// Lazy load helpers for better performance
+const ChartingHelper = lazy(() => import('./helpers/ChartingHelper'));
+const ActionHelper = lazy(() => import('./helpers/ActionHelper'));
+const LearningHelper = lazy(() => import('./helpers/LearningHelper'));
+const StockInfoHelper = lazy(() => import('./helpers/StockInfoHelper'));
+
+/**
+ * 4-Persona Review:
+ * 
+ * Professional Trader:
+ * - Quick access to all trading tools via panel
+ * - Context-aware helpers launch with relevant data
+ * - Seamless integration between panel and helpers
+ * 
+ * Senior Architect:
+ * - Lazy loading for performance optimization
+ * - State management via Zustand store
+ * - Proper separation of concerns
+ * 
+ * Senior Developer:
+ * - Clean integration with helper components
+ * - Proper error boundaries with Suspense
+ * - Consistent prop passing patterns
+ * 
+ * Beginner Trader:
+ * - Easy to understand panel sections
+ * - Clear descriptions for each action
+ * - Mobile-friendly FAB for quick access
+ */
 
 interface PanelSection {
   id: string;
@@ -31,7 +62,16 @@ interface PanelSection {
 const AssistantPanel = () => {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('actions');
-  const { setActiveView, selectedSymbol, activeView } = useAppStore();
+  const { 
+    setActiveView, 
+    selectedSymbol, 
+    activeView,
+    activeHelper,
+    setActiveHelper,
+    helperContext,
+    setHelperContext,
+    clearHelper
+  } = useAppStore();
 
   // Only show panel when there's relevant context
   const hasContext = selectedSymbol || (activeView && activeView !== 'dashboard');
@@ -43,6 +83,40 @@ const AssistantPanel = () => {
     }
   }, [hasContext, isMobileExpanded]);
 
+  // Helper action handler
+  const handleHelperAction = (action: string, data?: any) => {
+    console.log('Helper action:', action, data);
+    
+    // Handle specific actions
+    switch(action) {
+      case 'runScreener':
+        setActiveView('screener');
+        clearHelper();
+        break;
+      case 'viewChart':
+        if (data?.symbol) {
+          setActiveHelper('charting');
+          setHelperContext({ symbol: data.symbol, source: 'panel' });
+        }
+        break;
+      case 'viewStock':
+        if (data?.symbol) {
+          setActiveHelper('stockInfo');
+          setHelperContext({ symbol: data.symbol, source: 'panel' });
+        }
+        break;
+      case 'learn':
+        if (data?.topic) {
+          setActiveHelper('learning');
+          setHelperContext({ topic: data.topic, source: 'panel' });
+        }
+        break;
+      default:
+        // Handle other actions
+        break;
+    }
+  };
+
   const sections: PanelSection[] = [
     {
       id: 'actions',
@@ -52,12 +126,18 @@ const AssistantPanel = () => {
         {
           label: 'Run Screener',
           description: 'Find opportunities',
-          action: () => setActiveView('screener')
+          action: () => {
+            setActiveHelper('action');
+            setHelperContext({ source: 'panel', trigger: 'screener' });
+          }
         },
         {
           label: 'Market Overview',
           description: 'Today\'s summary',
-          action: () => console.log('Market overview')
+          action: () => {
+            setActiveHelper('charting');
+            setHelperContext({ symbol: 'SPY', source: 'panel', trigger: 'market' });
+          }
         },
         {
           label: 'Set Alert',
@@ -79,17 +159,32 @@ const AssistantPanel = () => {
         {
           label: 'Company Profile',
           description: selectedSymbol ? `About ${selectedSymbol}` : 'Select a stock',
-          action: () => console.log('Company profile')
+          action: () => {
+            if (selectedSymbol) {
+              setActiveHelper('stockInfo');
+              setHelperContext({ symbol: selectedSymbol, source: 'panel' });
+            }
+          }
         },
         {
           label: 'Financials',
           description: 'Income & balance sheet',
-          action: () => console.log('Financials')
+          action: () => {
+            if (selectedSymbol) {
+              setActiveHelper('stockInfo');
+              setHelperContext({ symbol: selectedSymbol, source: 'panel', trigger: 'financials' });
+            }
+          }
         },
         {
           label: 'News & Events',
           description: 'Latest updates',
-          action: () => console.log('News')
+          action: () => {
+            if (selectedSymbol) {
+              setActiveHelper('stockInfo');
+              setHelperContext({ symbol: selectedSymbol, source: 'panel', trigger: 'news' });
+            }
+          }
         },
         {
           label: 'Options Chain',
@@ -106,22 +201,34 @@ const AssistantPanel = () => {
         {
           label: 'Trading Basics',
           description: 'Get started',
-          action: () => console.log('Basics')
+          action: () => {
+            setActiveHelper('learning');
+            setHelperContext({ source: 'panel', topic: 'basics' });
+          }
         },
         {
           label: 'Strategy Guides',
           description: 'Advanced tactics',
-          action: () => console.log('Strategies')
+          action: () => {
+            setActiveHelper('learning');
+            setHelperContext({ source: 'panel', topic: 'strategies' });
+          }
         },
         {
           label: 'Indicator Wiki',
           description: 'How they work',
-          action: () => console.log('Indicators')
+          action: () => {
+            setActiveHelper('learning');
+            setHelperContext({ source: 'panel', topic: 'indicators' });
+          }
         },
         {
           label: 'Video Tutorials',
           description: 'Watch & learn',
-          action: () => console.log('Videos')
+          action: () => {
+            setActiveHelper('learning');
+            setHelperContext({ source: 'panel', topic: 'videos' });
+          }
         }
       ]
     },
@@ -133,17 +240,34 @@ const AssistantPanel = () => {
         {
           label: 'Price Chart',
           description: 'Candlestick view',
-          action: () => setActiveView('charts')
+          action: () => {
+            setActiveHelper('charting');
+            setHelperContext({ symbol: selectedSymbol || 'SPY', source: 'panel' });
+          }
         },
         {
           label: 'Technical View',
           description: 'With indicators',
-          action: () => console.log('Technical')
+          action: () => {
+            setActiveHelper('charting');
+            setHelperContext({ 
+              symbol: selectedSymbol || 'SPY', 
+              source: 'panel',
+              trigger: 'technical'
+            });
+          }
         },
         {
           label: 'Compare Stocks',
           description: 'Side by side',
-          action: () => console.log('Compare')
+          action: () => {
+            setActiveHelper('charting');
+            setHelperContext({ 
+              symbol: selectedSymbol || 'SPY',
+              source: 'panel',
+              trigger: 'compare'
+            });
+          }
         },
         {
           label: 'Heatmap',
@@ -155,6 +279,89 @@ const AssistantPanel = () => {
   ];
 
   const currentSection = sections.find(s => s.id === activeSection) || sections[0];
+
+  // Loading fallback
+  const LoadingFallback = () => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      color: sigmatiqTheme.colors.text.secondary
+    }}>
+      <Loader2 className="animate-spin" size={24} />
+      <span style={{ marginLeft: 8 }}>Loading helper...</span>
+    </div>
+  );
+
+  // Helper Modal (full screen on mobile, modal on desktop)
+  const HelperModal = () => {
+    if (!activeHelper) return null;
+
+    return (
+      <div 
+        className="fixed inset-0 z-50"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            clearHelper();
+          }
+        }}
+      >
+        <div 
+          className="fixed inset-4 lg:inset-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2"
+          style={{
+            width: window.innerWidth > 1024 ? '80vw' : 'auto',
+            maxWidth: '1200px',
+            height: window.innerWidth > 1024 ? '80vh' : 'auto',
+            backgroundColor: sigmatiqTheme.colors.background.primary,
+            borderRadius: 16,
+            overflow: 'hidden'
+          }}
+        >
+          <Suspense fallback={<LoadingFallback />}>
+            {activeHelper === 'charting' && (
+              <ChartingHelper
+                symbol={helperContext.symbol || selectedSymbol || 'SPY'}
+                onClose={clearHelper}
+                onAction={handleHelperAction}
+                context={helperContext}
+              />
+            )}
+            {activeHelper === 'action' && (
+              <ActionHelper
+                onClose={clearHelper}
+                onAction={handleHelperAction}
+                context={helperContext}
+              />
+            )}
+            {activeHelper === 'learning' && (
+              <LearningHelper
+                initialTopic={helperContext.topic}
+                onClose={clearHelper}
+                onAction={handleHelperAction}
+                context={{
+                  source: (helperContext.source || 'manual') as 'chat' | 'manual' | 'hover' | 'suggestion' | 'palette',
+                  searchTerm: helperContext.topic
+                }}
+              />
+            )}
+            {activeHelper === 'stockInfo' && helperContext.symbol && (
+              <StockInfoHelper
+                symbol={helperContext.symbol}
+                onClose={clearHelper}
+                onAction={handleHelperAction}
+                context={{
+                  source: helperContext.source as 'panel' | 'chat' | 'search' || 'panel',
+                  trigger: helperContext.trigger
+                }}
+              />
+            )}
+          </Suspense>
+        </div>
+      </div>
+    );
+  };
 
   // Mobile floating button and drawer
   const MobileVersion = () => {
@@ -313,12 +520,7 @@ const AssistantPanel = () => {
                 >
                   <div className="flex items-center gap-2">
                     <section.icon 
-                      className="w-4 h-4" 
-                      style={{ 
-                        color: activeSection === section.id 
-                          ? sigmatiqTheme.colors.primary.teal
-                          : sigmatiqTheme.colors.text.secondary
-                      }} 
+                      className="w-4 h-4"
                     />
                     <span 
                       className="font-medium text-sm"
@@ -406,6 +608,7 @@ const AssistantPanel = () => {
     <>
       <MobileVersion />
       <DesktopVersion />
+      <HelperModal />
     </>
   );
 };

@@ -12,10 +12,20 @@ import useAppStore from '../stores/useAppStore';
 import { useMarketDataQuery } from '../api/queries';
 import ClickableEntity from '../components/ClickableEntity';
 import LoadingIndicator from '../components/LoadingIndicator';
+import ErrorMessage from '../components/ErrorMessage';
 import { api } from '../api/client';
+import WatchlistCard from '../components/WatchlistCard';
 
 const Dashboard = () => {
-  const { watchlist, marketStatus, setActiveView, setSelectedSymbol, setMarketStatus } = useAppStore();
+  const { 
+    watchlist, 
+    marketStatus, 
+    setActiveView, 
+    setSelectedSymbol, 
+    setMarketStatus,
+    setActiveHelper,
+    setHelperContext
+  } = useAppStore();
   
   // Calculate market status and time remaining
   const calculateMarketStatus = () => {
@@ -25,18 +35,49 @@ const Dashboard = () => {
     const minutes = easternTime.getMinutes();
     const day = easternTime.getDay();
     
-    // Market is closed on weekends
-    if (day === 0 || day === 6) {
-      return { status: 'closed', timeRemaining: 'Weekend' };
-    }
-    
-    // Market hours: 9:30 AM - 4:00 PM ET
-    const marketOpen = 9 * 60 + 30; // 9:30 AM in minutes
-    const marketClose = 16 * 60; // 4:00 PM in minutes
+    // Market hours in minutes from midnight
+    const preMarketStart = 4 * 60; // 4:00 AM ET
+    const marketOpen = 9 * 60 + 30; // 9:30 AM ET
+    const marketClose = 16 * 60; // 4:00 PM ET
+    const afterHoursEnd = 20 * 60; // 8:00 PM ET
     const currentMinutes = hours * 60 + minutes;
     
-    if (currentMinutes < marketOpen) {
-      // Pre-market
+    // Helper to calculate time until next market open
+    const getTimeUntilOpen = () => {
+      let minutesUntilOpen;
+      if (day === 5 && currentMinutes >= afterHoursEnd) {
+        // Friday after 8pm - market opens Monday
+        minutesUntilOpen = (7 - day) * 24 * 60 + (24 - hours) * 60 - minutes + marketOpen;
+      } else if (day === 6) {
+        // Saturday - market opens Monday
+        minutesUntilOpen = (7 - day) * 24 * 60 + (24 - hours) * 60 - minutes + marketOpen;
+      } else if (day === 0) {
+        // Sunday - market opens Monday
+        minutesUntilOpen = (24 - hours) * 60 - minutes + marketOpen;
+      } else if (currentMinutes >= afterHoursEnd) {
+        // Weekday after 8pm - market opens tomorrow
+        minutesUntilOpen = (24 - hours) * 60 - minutes + marketOpen;
+      } else {
+        // Same day
+        minutesUntilOpen = marketOpen - currentMinutes;
+      }
+      
+      const hoursUntilOpen = Math.floor(minutesUntilOpen / 60);
+      const minsUntilOpen = minutesUntilOpen % 60;
+      return `Opens in ${hoursUntilOpen}h ${minsUntilOpen}m`;
+    };
+    
+    // Weekend
+    if (day === 0 || day === 6) {
+      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
+    }
+    
+    // Weekday schedule
+    if (currentMinutes < preMarketStart) {
+      // Closed (midnight to 4am)
+      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
+    } else if (currentMinutes >= preMarketStart && currentMinutes < marketOpen) {
+      // Pre-market (4am to 9:30am)
       const minutesUntilOpen = marketOpen - currentMinutes;
       const hoursUntilOpen = Math.floor(minutesUntilOpen / 60);
       const minsUntilOpen = minutesUntilOpen % 60;
@@ -45,7 +86,7 @@ const Dashboard = () => {
         timeRemaining: `Opens in ${hoursUntilOpen}h ${minsUntilOpen}m` 
       };
     } else if (currentMinutes >= marketOpen && currentMinutes < marketClose) {
-      // Market open
+      // Market open (9:30am to 4pm)
       const minutesUntilClose = marketClose - currentMinutes;
       const hoursUntilClose = Math.floor(minutesUntilClose / 60);
       const minsUntilClose = minutesUntilClose % 60;
@@ -53,9 +94,18 @@ const Dashboard = () => {
         status: 'open', 
         timeRemaining: `Closes in ${hoursUntilClose}h ${minsUntilClose}m` 
       };
+    } else if (currentMinutes >= marketClose && currentMinutes < afterHoursEnd) {
+      // After-hours (4pm to 8pm)
+      const minutesUntilEnd = afterHoursEnd - currentMinutes;
+      const hoursUntilEnd = Math.floor(minutesUntilEnd / 60);
+      const minsUntilEnd = minutesUntilEnd % 60;
+      return { 
+        status: 'after-hours', 
+        timeRemaining: `After-hours ends in ${hoursUntilEnd}h ${minsUntilEnd}m` 
+      };
     } else {
-      // After hours
-      return { status: 'after-hours', timeRemaining: 'After Hours' };
+      // Closed (8pm to midnight)
+      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
     }
   };
   
@@ -92,11 +142,13 @@ const Dashboard = () => {
   );
 
   // Fetch market breadth data
-  const { data: marketBreadthData, isLoading: breadthLoading } = useQuery({
+  const { data: marketBreadthData, isLoading: breadthLoading, error: breadthError } = useQuery({
     queryKey: ['marketBreadth'],
     queryFn: api.market.getMarketBreadth,
     refetchInterval: marketStatus === 'open' ? 120000 : false, // Refetch every 2 minutes if market open
     staleTime: 60000, // Data considered fresh for 1 minute
+    retry: 2, // Retry failed requests twice
+    retryDelay: 1000, // Wait 1 second between retries
   });
 
   // VIX data removed - not available from data provider
@@ -194,6 +246,11 @@ const Dashboard = () => {
             <div className="flex items-center justify-center h-24">
               <LoadingIndicator message="Loading breadth data" size="small" />
             </div>
+          ) : breadthError ? (
+            <ErrorMessage 
+              error={breadthError} 
+              onRetry={() => window.location.reload()} 
+            />
           ) : (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
@@ -276,7 +333,7 @@ const Dashboard = () => {
                     <div className="space-y-3">
                       {aiInsights.preview.opportunities.slice(0, 2).map((opp: any, idx: number) => (
                         <div key={idx}>
-                          <div className="font-semibold text-xs mb-1" style={{ color: sigmatiqTheme.colors.accent.primary }}>
+                          <div className="font-semibold text-xs mb-1" style={{ color: sigmatiqTheme.colors.text.accent }}>
                             {opp.type}
                           </div>
                           <div className="text-xs mb-1" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -290,7 +347,7 @@ const Dashboard = () => {
                                   className="px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80"
                                   style={{ 
                                     backgroundColor: sigmatiqTheme.colors.background.tertiary,
-                                    color: sigmatiqTheme.colors.accent.primary 
+                                    color: sigmatiqTheme.colors.text.accent 
                                   }}
                                   onClick={() => {
                                     setSelectedSymbol(sym);
@@ -320,21 +377,6 @@ const Dashboard = () => {
             }
             actionLabel="View Full Analysis"
             onAction={() => console.log('View analysis')}
-          />
-
-          <AIInsightCard 
-            title="Opportunities Found"
-            icon={Target}
-            content={
-              <>
-                <ClickableEntity type="strategy" value="momentum">Momentum strategy</ClickableEntity> signals on{' '}
-                <ClickableEntity type="symbol" value="NVDA">$NVDA</ClickableEntity> and{' '}
-                <ClickableEntity type="symbol" value="AMD">$AMD</ClickableEntity> with{' '}
-                <ClickableEntity type="term" value="volume surge">volume surge</ClickableEntity> confirmation.
-              </>
-            }
-            actionLabel="Run Screener"
-            onAction={() => setActiveView('screener')}
           />
 
           <AIInsightCard 
@@ -492,6 +534,9 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+
+          {/* Watchlist */}
+          <WatchlistCard />
         </div>
       </div>
 
@@ -501,19 +546,28 @@ const Dashboard = () => {
           icon={LineChart}
           title="Charts"
           description="Technical analysis"
-          onClick={() => setActiveView('charts')}
+          onClick={() => {
+            setActiveHelper('charting');
+            setHelperContext({ symbol: 'SPY', source: 'panel' });
+          }}
         />
         <ToolCard 
           icon={Filter}
           title="Screener"
           description="Find stocks"
-          onClick={() => setActiveView('screener')}
+          onClick={() => {
+            setActiveHelper('action');
+            setHelperContext({ source: 'panel', trigger: 'screener' });
+          }}
         />
         <ToolCard 
           icon={BarChart3}
           title="Compare"
           description="Side by side"
-          onClick={() => console.log('Compare')}
+          onClick={() => {
+            setActiveHelper('charting');
+            setHelperContext({ symbol: 'SPY', source: 'panel', trigger: 'compare' });
+          }}
         />
         <ToolCard 
           icon={Target}
@@ -523,9 +577,12 @@ const Dashboard = () => {
         />
         <ToolCard 
           icon={Brain}
-          title="Backtest"
-          description="Test strategies"
-          onClick={() => console.log('Backtest')}
+          title="Learning"
+          description="Learn trading"
+          onClick={() => {
+            setActiveHelper('learning');
+            setHelperContext({ source: 'panel', topic: 'basics' });
+          }}
         />
         <ToolCard 
           icon={Bell}

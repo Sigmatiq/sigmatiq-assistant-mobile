@@ -7,14 +7,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/core': {
-        target: 'http://localhost:8050',
+        target: 'http://localhost:8050',  // Core API (running via Assistant)
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/core/, ''),
       },
       '/api/assistant': {
-        target: 'http://localhost:8090',
+        target: 'http://localhost:8050',  // Assistant API on same port
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/assistant/, ''),
+        rewrite: (path) => path.replace(/^\/api\/assistant/, '/assistant'),
       },
     },
   },
