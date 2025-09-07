@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MobileLayout from './components/layouts/MobileLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAppStore from './stores/useAppStore';
+import './styles/helpers.css';
 
 // Create a client with better error handling and caching
 const queryClient = new QueryClient({

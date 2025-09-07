@@ -21,6 +21,13 @@ interface AppState {
   experience?: 'novice' | 'intermediate' | 'power';
   setExperience: (experience: 'novice' | 'intermediate' | 'power') => void;
   
+  // Trading Profile
+  tradingProfile: 'day' | 'swing' | 'options' | 'investing';
+  setTradingProfile: (profile: 'day' | 'swing' | 'options' | 'investing') => void;
+  // Instrument / Asset Type
+  assetType: 'stocks' | 'options';
+  setAssetType: (asset: 'stocks' | 'options') => void;
+  
   // Navigation
   activeView: 'dashboard' | 'chat' | 'screener' | 'charts' | 'settings';
   setActiveView: (view: AppState['activeView']) => void;
@@ -51,6 +58,7 @@ interface AppState {
   setTheme: (theme: AppState['theme']) => void;
   selectedSymbol: string | null;
   setSelectedSymbol: (symbol: string | null) => void;
+  clearContext: () => void;
   
   // Chat Context
   chatContext: {
@@ -71,6 +79,13 @@ const useAppStore = create<AppState>()(
         setUser: (user) => set({ user }),
         experience: 'novice',
         setExperience: (experience) => set({ experience }),
+        
+        // Trading Profile
+        tradingProfile: 'day',
+        setTradingProfile: (profile) => set({ tradingProfile: profile }),
+        // Instrument / Asset Type
+        assetType: 'stocks',
+        setAssetType: (asset) => set({ assetType: asset }),
         
         // Navigation
         activeView: 'dashboard',
@@ -101,6 +116,13 @@ const useAppStore = create<AppState>()(
         setTheme: (theme) => set({ theme }),
         selectedSymbol: null,
         setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
+        clearContext: () => set({ 
+          selectedSymbol: null, 
+          activeView: 'dashboard',
+          activeHelper: null,
+          helperContext: {},
+          chatContext: {}
+        }),
         
         // Chat Context
         chatContext: {},
@@ -112,6 +134,8 @@ const useAppStore = create<AppState>()(
         partialize: (state) => ({
           user: state.user,
           experience: state.experience,
+          tradingProfile: state.tradingProfile,
+          assetType: state.assetType,
           watchlist: state.watchlist,
           theme: state.theme,
         }),

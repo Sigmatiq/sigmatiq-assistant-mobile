@@ -14,7 +14,11 @@ import {
   Building,
   FileText,
   PieChart,
-  Shield
+  Shield,
+  XCircle,
+  Eye,
+  Bell,
+  LineChart
 } from 'lucide-react';
 import { sigmatiqTheme } from '../../styles/sigmatiq-theme';
 import useAppStore from '../../stores/useAppStore';
@@ -113,123 +117,193 @@ interface Props {
 const StockInfoHelper: React.FC<Props> = ({ symbol, onClose, onAction, context }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'analysis' | 'news' | 'events'>('overview');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stockData, setStockData] = useState<StockInfoData | null>(null);
-  const { experience = 'novice' } = useAppStore();
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const { experience = 'novice', clearContext, addToWatchlist, watchlist } = useAppStore();
+  
+  const isInWatchlist = watchlist.includes(symbol.toUpperCase());
 
   useEffect(() => {
     loadStockData();
   }, [symbol]);
 
+  useEffect(() => {
+    // Better mobile detection that considers screen width and user agent
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      const isSmallScreen = width < 768;
+      
+      // Only consider it mobile if it's actually a mobile device OR a small screen
+      // This prevents desktop browsers with touch support from being detected as mobile
+      setIsMobile(isMobileDevice || isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    // Hide tooltip on any touch/click outside
+    const handleOutsideClick = () => {
+      if (isMobile) {
+        setHoveredButton(null);
+      }
+    };
+    
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('click', handleOutsideClick);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isMobile]);
+
+  // Tooltip component
+  const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      {children}
+      {hoveredButton === text && (
+        <>
+          <style>{`
+            @keyframes tooltipFadeIn {
+              from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+              to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+          `}</style>
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: 8,
+            padding: '8px 12px',
+            backgroundColor: '#1a1a1a',
+            color: '#ffffff',
+            fontSize: 13,
+            fontWeight: 500,
+            borderRadius: 6,
+            whiteSpace: 'nowrap',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            animation: 'tooltipFadeIn 0.2s ease-out',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+          }}>
+            {text}
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #1a1a1a'
+            }} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   const loadStockData = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      // Fetch real stock data from multiple endpoints
-      const [quoteData, marketData] = await Promise.all([
-        api.market.getQuote(symbol).catch(() => null),
-        api.market.getMarketSummary([symbol]).catch(() => null)
+      // Fetch real data from our APIs (same pattern as web version)
+      const [contextData, fundamentals, newsData] = await Promise.all([
+        api.assistant.getSymbolContext(symbol, 'day').catch(() => null),
+        api.fundamentals.getOverview(symbol).catch(() => null),
+        api.news.getSentiment(symbol).catch(() => null)
       ]);
       
-      // Default values
-      let basePrice = 150 + Math.random() * 100;
-      let change = (Math.random() - 0.5) * 10;
-      let name = getCompanyName(symbol);
+      // TODO: Add fallback to market.getQuote if context API fails
+      // TODO: Add caching to reduce API calls
+      // TODO: Add WebSocket connection for real-time price updates
       
-      // Use real data if available
-      if (quoteData) {
-        basePrice = quoteData.price || quoteData.close || basePrice;
-        change = quoteData.change || quoteData.day_change || change;
-        name = quoteData.name || name;
-      } else if (marketData && marketData[symbol]) {
-        basePrice = marketData[symbol].price || basePrice;
-        change = (marketData[symbol].changePercent / 100) * basePrice || change;
+      if (!contextData && !fundamentals) {
+        throw new Error('Unable to fetch stock data');
       }
       
       setStockData({
         overview: {
           symbol: symbol.toUpperCase(),
-          name: getCompanyName(symbol),
-          price: basePrice,
-          change,
-          changePercent: (change / basePrice) * 100,
-          volume: Math.floor(10000000 + Math.random() * 50000000),
-          marketCap: Math.floor(basePrice * 1000000000 * (1 + Math.random() * 10)),
-          dayRange: { 
-            low: basePrice - Math.abs(change) * 1.5, 
-            high: basePrice + Math.abs(change) * 1.5 
+          name: fundamentals?.overview?.name || getCompanyName(symbol),
+          price: parseFloat(contextData?.metrics?.price) || 0,
+          change: parseFloat(contextData?.metrics?.change) || 0,
+          changePercent: parseFloat(contextData?.metrics?.change_percent) || 0,
+          volume: parseInt(contextData?.metrics?.volume) || 0,
+          marketCap: parseFloat(fundamentals?.overview?.market_cap) || 0,
+          dayRange: {
+            low: parseFloat(contextData?.metrics?.day_low) || 0,
+            high: parseFloat(contextData?.metrics?.day_high) || 0
           },
-          yearRange: { 
-            low: basePrice * 0.6, 
-            high: basePrice * 1.4 
+          yearRange: {
+            low: parseFloat(contextData?.metrics?.year_low) || 0,
+            high: parseFloat(contextData?.metrics?.year_high) || 0
           },
-          avgVolume: Math.floor(15000000 + Math.random() * 30000000)
+          avgVolume: parseInt(contextData?.metrics?.avg_volume) || 0
         },
         technicals: {
-          rsi: 30 + Math.random() * 40,
+          rsi: parseFloat(contextData?.metrics?.rsi14) || 50,
           macd: {
-            value: Math.random() * 2 - 1,
-            signal: Math.random() * 2 - 1,
-            histogram: Math.random() * 1 - 0.5
+            // TODO: Add MACD to context API response
+            value: 0,
+            signal: 0,
+            histogram: 0
           },
           movingAverages: {
-            ma20: basePrice * (0.95 + Math.random() * 0.1),
-            ma50: basePrice * (0.9 + Math.random() * 0.2),
-            ma200: basePrice * (0.85 + Math.random() * 0.3)
+            ma20: parseFloat(contextData?.metrics?.sma20) || 0,
+            ma50: parseFloat(contextData?.metrics?.ema50) || 0,
+            ma200: parseFloat(contextData?.metrics?.ema200) || 0
           },
-          support: basePrice * 0.92,
-          resistance: basePrice * 1.08,
-          trend: change > 0 ? 'bullish' : change < -2 ? 'bearish' : 'neutral'
+          // TODO: Add support/resistance calculation
+          support: 0,
+          resistance: 0,
+          trend: parseFloat(contextData?.metrics?.change) > 0 ? 'bullish' : 
+                 parseFloat(contextData?.metrics?.change) < 0 ? 'bearish' : 'neutral'
         },
         fundamentals: {
-          peRatio: 15 + Math.random() * 20,
-          eps: 5 + Math.random() * 10,
+          peRatio: parseFloat(fundamentals?.overview?.pe_ratio) || 0,
+          eps: parseFloat(fundamentals?.overview?.eps) || 0,
           dividend: {
-            yield: Math.random() * 3,
-            amount: Math.random() * 2,
-            exDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            yield: parseFloat(fundamentals?.overview?.dividend_yield) || 0,
+            // TODO: Add dividend amount to API
+            amount: 0,
+            // TODO: Add ex-dividend date to API
+            exDate: 'N/A'
           },
-          beta: 0.8 + Math.random() * 0.6,
-          sharesOutstanding: Math.floor(500000000 + Math.random() * 2000000000),
-          sector: 'Technology',
-          industry: 'Software'
+          beta: parseFloat(fundamentals?.overview?.beta) || 1,
+          sharesOutstanding: parseInt(fundamentals?.overview?.shares_outstanding) || 0,
+          sector: fundamentals?.overview?.sector || 'N/A',
+          industry: fundamentals?.overview?.industry || 'N/A'
         },
-        news: [
-          {
-            title: `${symbol.toUpperCase()} Announces Quarterly Earnings Beat`,
-            summary: 'Company reports strong Q3 results, beating analyst expectations on both revenue and earnings...',
-            source: 'Reuters',
-            time: '2 hours ago',
-            sentiment: 'positive'
-          },
-          {
-            title: `Analyst Upgrades ${symbol.toUpperCase()} to Buy`,
-            summary: 'Goldman Sachs raises price target citing strong growth prospects...',
-            source: 'CNBC',
-            time: '5 hours ago',
-            sentiment: 'positive'
-          },
-          {
-            title: `Market Update: Tech Stocks Rally`,
-            summary: 'Technology sector leads market gains as investors show renewed confidence...',
-            source: 'Bloomberg',
-            time: '1 day ago',
-            sentiment: 'neutral'
-          }
-        ],
+        news: newsData?.items ? newsData.items.slice(0, 3).map((item: any) => ({
+          title: item.title,
+          summary: item.summary || '',
+          source: item.source || 'News',
+          time: item.time_published || 'Recent',
+          sentiment: item.overall_sentiment_label?.toLowerCase() || 'neutral'
+        })) : [],
+        // TODO: Add more news sources
+        // TODO: Add real-time news updates via WebSocket
         events: [
-          {
-            type: 'earnings',
-            date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            description: 'Q4 Earnings Release'
-          },
-          {
-            type: 'dividend',
-            date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            description: 'Quarterly Dividend Ex-Date'
-          }
+          // TODO: Implement earnings calendar API
+          // TODO: Implement dividend calendar API
+          // TODO: Implement corporate events API (splits, acquisitions, etc.)
         ]
       });
-    } catch (error) {
-      console.error('Error loading stock data:', error);
+    } catch (err) {
+      console.error('Error fetching stock data:', err);
+      setError('Unable to load stock data. Please try again.');
+      // TODO: Add retry mechanism with exponential backoff
+      // TODO: Add offline mode with cached data
+      // TODO: Show user-friendly error messages based on error type
     } finally {
       setLoading(false);
     }
@@ -602,22 +676,179 @@ const StockInfoHelper: React.FC<Props> = ({ symbol, onClose, onAction, context }
               </div>
             )}
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              backgroundColor: sigmatiqTheme.colors.background.tertiary,
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            <X size={18} color={sigmatiqTheme.colors.text.secondary} />
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/* Add to Watchlist Button */}
+            <Tooltip text={isInWatchlist ? 'Already in watchlist' : 'Add to watchlist'}>
+              <button
+                onClick={() => {
+                  if (!isInWatchlist) {
+                    addToWatchlist(symbol.toUpperCase());
+                  }
+                }}
+                onMouseEnter={() => {
+                  console.log('Hovering watchlist button, isMobile:', isMobile);
+                  setHoveredButton(isInWatchlist ? 'Already in watchlist' : 'Add to watchlist');
+                }}
+                onMouseLeave={() => {
+                  setHoveredButton(null);
+                }}
+                onTouchStart={(e) => {
+                  if (isMobile) {
+                    e.stopPropagation();
+                    setHoveredButton(isInWatchlist ? 'Already in watchlist' : 'Add to watchlist');
+                    setTimeout(() => setHoveredButton(null), 1500);
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: isInWatchlist 
+                    ? sigmatiqTheme.colors.primary.teal + '20'
+                    : sigmatiqTheme.colors.background.tertiary,
+                  border: isInWatchlist 
+                    ? `1px solid ${sigmatiqTheme.colors.primary.teal}`
+                    : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isInWatchlist ? 'default' : 'pointer',
+                  opacity: isInWatchlist ? 0.8 : 1
+                }}
+                disabled={isInWatchlist}
+              >
+                <Eye size={16} color={
+                  isInWatchlist 
+                    ? sigmatiqTheme.colors.primary.teal
+                    : sigmatiqTheme.colors.text.secondary
+                } />
+              </button>
+            </Tooltip>
+
+            {/* Set Alert Button */}
+            <Tooltip text="Set price alert">
+              <button
+                onClick={() => {
+                  console.log('Set alert for', symbol);
+                  // TODO: Implement alert functionality
+                }}
+                onMouseEnter={() => setHoveredButton('Set price alert')}
+                onMouseLeave={() => setHoveredButton(null)}
+                onTouchStart={(e) => {
+                  if (isMobile) {
+                    e.stopPropagation();
+                    setHoveredButton('Set price alert');
+                    setTimeout(() => setHoveredButton(null), 1500);
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <Bell size={16} color={sigmatiqTheme.colors.text.secondary} />
+              </button>
+            </Tooltip>
+
+            {/* View Chart Button */}
+            <Tooltip text="View chart">
+              <button
+                onClick={() => {
+                  onAction?.('viewChart', { symbol });
+                }}
+                onMouseEnter={() => setHoveredButton('View chart')}
+                onMouseLeave={() => setHoveredButton(null)}
+                onTouchStart={(e) => {
+                  if (isMobile) {
+                    e.stopPropagation();
+                    setHoveredButton('View chart');
+                    setTimeout(() => setHoveredButton(null), 1500);
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <LineChart size={16} color={sigmatiqTheme.colors.text.secondary} />
+              </button>
+            </Tooltip>
+            
+            {/* Clear Context Button */}
+            <Tooltip text="Clear context & return home">
+              <button
+                onClick={() => {
+                  clearContext();
+                  onClose();
+                }}
+                onMouseEnter={() => setHoveredButton('Clear context & return home')}
+                onMouseLeave={() => setHoveredButton(null)}
+                onTouchStart={(e) => {
+                  if (isMobile) {
+                    e.stopPropagation();
+                    setHoveredButton('Clear context & return home');
+                    setTimeout(() => setHoveredButton(null), 1500);
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <XCircle size={16} color={sigmatiqTheme.colors.text.muted} />
+              </button>
+            </Tooltip>
+            
+            {/* Close Button */}
+            <Tooltip text="Close panel">
+              <button
+                onClick={onClose}
+                onMouseEnter={() => setHoveredButton('Close panel')}
+                onMouseLeave={() => setHoveredButton(null)}
+                onTouchStart={(e) => {
+                  if (isMobile) {
+                    e.stopPropagation();
+                    setHoveredButton('Close panel');
+                    setTimeout(() => setHoveredButton(null), 1500);
+                  }
+                }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} color={sigmatiqTheme.colors.text.secondary} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
 
         {/* Context Indicator */}
@@ -695,47 +926,6 @@ const StockInfoHelper: React.FC<Props> = ({ symbol, onClose, onAction, context }
         )}
       </div>
 
-      {/* Action Bar */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        padding: 16,
-        backgroundColor: sigmatiqTheme.colors.background.secondary,
-        borderTop: `1px solid ${sigmatiqTheme.colors.border.default}`
-      }}>
-        <button
-          onClick={() => onAction('addToWatchlist', { symbol })}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            backgroundColor: sigmatiqTheme.colors.background.tertiary,
-            color: sigmatiqTheme.colors.text.primary,
-            border: `1px solid ${sigmatiqTheme.colors.border.default}`,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer'
-          }}
-        >
-          Add to Watchlist
-        </button>
-        <button
-          onClick={() => onAction('setAlert', { symbol, price: stockData?.overview.price })}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            backgroundColor: sigmatiqTheme.colors.primary.teal,
-            color: 'white',
-            border: 'none',
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer'
-          }}
-        >
-          Set Alert
-        </button>
-      </div>
     </div>
   );
 };

@@ -85,7 +85,10 @@ const ChartingHelper: React.FC<Props> = ({ symbol, onClose, onAction, context, e
       }
     },
     refetchInterval: autoRefresh ? 60000 : false, // Refresh every minute if auto-refresh is on
-    staleTime: 30000, // Data is fresh for 30 seconds
+    staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
+    refetchOnMount: false, // Prevent refetch on component mount
+    refetchOnReconnect: false, // Prevent refetch on reconnect
   });
 
   // Calculate indicators

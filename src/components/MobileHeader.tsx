@@ -1,4 +1,4 @@
-import { Menu, Bell, Search, Plus, X, Edit3 } from 'lucide-react';
+import { Bell, Search, Plus, X, Edit3 } from 'lucide-react';
 import useAppStore from '../stores/useAppStore';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
@@ -64,15 +64,14 @@ const MobileHeader = () => {
       <div className="px-4 py-3">
         {/* Top Row */}
         <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <button
               onClick={toggleMobileMenu}
-              className="touch-target flex items-center justify-center rounded-lg transition-all"
-              style={{ color: sigmatiqTheme.colors.text.secondary }}
+              className="flex items-center transition-all hover:opacity-80"
+              aria-label="Toggle menu"
             >
-              <Menu className="w-6 h-6" />
+              <Logo size="sm" variant="full" />
             </button>
-            <Logo size="sm" variant="full" />
           </div>
           
           <div className="flex items-center gap-2">

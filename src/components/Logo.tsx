@@ -2,7 +2,7 @@ import React from 'react';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   variant?: 'full' | 'icon' | 'bubble';
   className?: string;
   showText?: boolean;
@@ -15,6 +15,7 @@ const Logo: React.FC<LogoProps> = ({
   showText = true 
 }) => {
   const sizes = {
+    xs: { width: 100, height: 20, iconSize: 20, fontSize: '12px', tagSize: '8px' },
     sm: { width: 120, height: 24, iconSize: 24, fontSize: '14px', tagSize: '9px' },
     md: { width: 160, height: 32, iconSize: 32, fontSize: '18px', tagSize: '10px' },
     lg: { width: 200, height: 48, iconSize: 48, fontSize: '24px', tagSize: '12px' }

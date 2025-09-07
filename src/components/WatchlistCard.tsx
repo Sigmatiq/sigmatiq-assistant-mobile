@@ -14,6 +14,11 @@ interface WatchlistSymbol {
   change: number;
   change_percent: number;
   volume?: number;
+  // Optional intraday enrichments (when detail=full)
+  rvol_10d?: number | null;
+  spread_bps?: number | null;
+  vwap_distance_pct?: number | null;
+  session_range_pct?: number | null;
 }
 
 interface WatchlistData {
@@ -49,6 +54,9 @@ const WatchlistCard: React.FC = () => {
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   // Auto-select default or first watchlist
@@ -60,7 +68,7 @@ const WatchlistCard: React.FC = () => {
   }, [watchlists, selectedWatchlistId]);
 
   // Fetch watchlist snapshot data
-  const { data: watchlistData, isLoading: dataLoading, error: dataError, refetch } = useQuery<WatchlistData>({
+  const { data: watchlistData, isLoading: dataLoading, error: dataError, refetch, dataUpdatedAt } = useQuery<WatchlistData>({
     queryKey: ['watchlistSnapshot', selectedWatchlistId],
     queryFn: async () => {
       if (!selectedWatchlistId) throw new Error('No watchlist selected');
@@ -68,8 +76,11 @@ const WatchlistCard: React.FC = () => {
       return response;
     },
     enabled: !!selectedWatchlistId,
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Disable auto-refetch, use manual refresh button
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const selectedWatchlist = watchlists.find(w => w.watchlist_id === selectedWatchlistId);
@@ -95,7 +106,7 @@ const WatchlistCard: React.FC = () => {
       >
         <div className="flex items-center gap-2 mb-3">
           <Eye size={20} style={{ color: sigmatiqTheme.colors.text.accent }} />
-          <h3 className="font-semibold text-lg" style={{ color: sigmatiqTheme.colors.text.primary }}>
+          <h3 className="font-semibold text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
             Watchlist
           </h3>
         </div>
@@ -122,12 +133,12 @@ const WatchlistCard: React.FC = () => {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Eye size={20} style={{ color: sigmatiqTheme.colors.text.accent }} />
-          <h3 className="font-semibold text-lg" style={{ color: sigmatiqTheme.colors.text.primary }}>
+          <h3 className="font-semibold text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
             Watchlist
           </h3>
           {watchlistData?._cache_metadata?.source === 'cache' && (
             <span 
-              className="text-xs px-2 py-1 rounded"
+              className="text-xs px-1 py-0.5 rounded text-xs uppercase tracking-wider"
               style={{ 
                 backgroundColor: sigmatiqTheme.colors.background.primary,
                 color: sigmatiqTheme.colors.text.tertiary 
@@ -137,7 +148,9 @@ const WatchlistCard: React.FC = () => {
             </span>
           )}
         </div>
-        
+        <span className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.muted }}>
+          as of {new Date(dataUpdatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
         <button
           onClick={() => refetch()}
           className="p-1 rounded hover:bg-opacity-10 transition-colors"
@@ -187,7 +200,7 @@ const WatchlistCard: React.FC = () => {
                 >
                   <div>{watchlist.name} {watchlist.is_default && '(Default)'}</div>
                   {watchlist.description && (
-                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                    <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>
                       {watchlist.description}
                     </div>
                   )}
@@ -212,27 +225,52 @@ const WatchlistCard: React.FC = () => {
               style={{ backgroundColor: sigmatiqTheme.colors.background.primary }}
               onClick={() => {
                 setSelectedSymbol(symbol.symbol);
-                setActiveHelper('stockInfo');
-                setHelperContext({ symbol: symbol.symbol, source: 'panel' });
+                // Only launch StockInfoHelper on mobile (< 768px)
+                // On tablets/desktop, the assistant panel will show the stock info
+                if (window.innerWidth < 768) {
+                  setActiveHelper('stockInfo');
+                  setHelperContext({ symbol: symbol.symbol, source: 'panel' });
+                }
               }}
             >
               <div className="flex-1">
-                <div className="font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                <div className="font-medium text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
                   {symbol.symbol}
                 </div>
-                {symbol.name && (
-                  <div className="text-xs truncate" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    {symbol.name}
+                <div className="text-xs truncate" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                  {symbol.name || ''}
+                </div>
+                {/* Intraday metrics row (optional) */}
+                {(symbol.rvol_10d != null || symbol.spread_bps != null || symbol.vwap_distance_pct != null) && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {symbol.rvol_10d != null && (
+                      <span title="Relative Volume vs 10-day average (1.0x = average)" className="px-1.5 py-0.5 rounded text-[11px]" style={{
+                        backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                        color: sigmatiqTheme.colors.text.accent
+                      }}>RVOL {Number(symbol.rvol_10d).toFixed(2)}x</span>
+                    )}
+                    {symbol.spread_bps != null && (
+                      <span title="Bid/Ask spread in basis points (lower is better)" className="px-1.5 py-0.5 rounded text-[11px]" style={{
+                        backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                        color: sigmatiqTheme.colors.text.secondary
+                      }}>Spread {Number(symbol.spread_bps).toFixed(1)} bps</span>
+                    )}
+                    {symbol.vwap_distance_pct != null && (
+                      <span title="% above/below intraday VWAP" className="px-1.5 py-0.5 rounded text-[11px]" style={{
+                        backgroundColor: sigmatiqTheme.colors.background.tertiary,
+                        color: (symbol.vwap_distance_pct || 0) >= 0 ? sigmatiqTheme.colors.status.success : sigmatiqTheme.colors.status.error
+                      }}>VWAP {Number(symbol.vwap_distance_pct).toFixed(2)}%</span>
+                    )}
                   </div>
                 )}
               </div>
               
               <div className="text-right">
-                <div className="font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                <div className="font-medium text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
                   {formatPrice(symbol.price)}
                 </div>
                 <div 
-                  className="text-xs flex items-center justify-end gap-1"
+                  className="text-sm flex items-center justify-end gap-1"
                   style={{ 
                     color: symbol.change >= 0 
                       ? sigmatiqTheme.colors.semantic.success 

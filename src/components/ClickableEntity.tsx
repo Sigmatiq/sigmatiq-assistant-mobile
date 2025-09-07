@@ -36,9 +36,12 @@ const ClickableEntity: React.FC<ClickableEntityProps> = ({
     switch (type) {
       case 'symbol':
         setSelectedSymbol(value);
-        // Launch StockInfoHelper with the symbol
-        setActiveHelper('stockInfo');
-        setHelperContext({ symbol: value, source: 'search' });
+        // Only launch StockInfoHelper on mobile (< 768px)
+        // On tablets/desktop, the assistant panel will show the stock info
+        if (window.innerWidth < 768) {
+          setActiveHelper('stockInfo');
+          setHelperContext({ symbol: value, source: 'search' });
+        }
         break;
       case 'indicator':
         // TODO: Add indicator to current context

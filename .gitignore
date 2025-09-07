@@ -48,3 +48,7 @@ public/workbox-*.js
 *.log
 .vercel
 .netlify
+/playwright-report/data
+/.vs
+/test-results
+/tests/visual

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, MessageCircle, TrendingUp, LineChart, Settings } from 'lucide-react';
+import { X } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import MobileHeader from '../MobileHeader';
-import DesktopHeader from '../DesktopHeader';
+import OptimizedHeader from '../OptimizedHeader';
 import MobileNav from '../MobileNav';
 import AssistantPanel from '../AssistantPanel';
 import Dashboard from '../../pages/Dashboard';
 import Chat from '../../pages/Chat';
+import Settings from '../../pages/Settings';
 import Logo from '../Logo';
 import { sigmatiqTheme } from '../../styles/sigmatiq-theme';
+import GestureLayer from '../GestureLayer';
 
 const MobileLayout = () => {
   const { activeView, isMobileMenuOpen, toggleMobileMenu } = useAppStore();
@@ -35,49 +37,42 @@ const MobileLayout = () => {
       case 'charts':
         return <div className="p-4">Charts (Coming Soon)</div>;
       case 'settings':
-        return <div className="p-4">Settings (Coming Soon)</div>;
+        return <Settings />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row" style={{ backgroundColor: sigmatiqTheme.colors.background.primary }}>
-      {/* Mobile Header - only show on mobile */}
-      {!isDesktop && (
-        <div className="lg:hidden">
-          <MobileHeader />
-        </div>
-      )}
+    <div className="min-h-screen" style={{ backgroundColor: sigmatiqTheme.colors.background.primary }}>
+      {/* Optimized Header - Fixed at top for both mobile and desktop */}
+      <OptimizedHeader />
+      
+      {/* Main layout container with padding for fixed header */}
+      <div className="flex flex-col lg:flex-row pt-20">
+        {/* Desktop Sidebar - only show on desktop */}
+        {isDesktop && (
+          <aside 
+            className="hidden lg:block w-64 border-r h-[calc(100vh-5rem)] sticky top-20"
+            style={{ 
+              backgroundColor: sigmatiqTheme.colors.background.secondary,
+              borderColor: sigmatiqTheme.colors.border.default 
+            }}
+          >
+            <MobileNav isDesktop={true} />
+          </aside>
+        )}
 
-      {/* Desktop Sidebar - only show on desktop */}
-      {isDesktop && (
-        <aside 
-          className="hidden lg:block w-64 border-r"
-          style={{ 
-            backgroundColor: sigmatiqTheme.colors.background.secondary,
-            borderColor: sigmatiqTheme.colors.border.default 
-          }}
-        >
-          <div className="p-6">
-            <Logo size="md" variant="full" />
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col pb-20 lg:pb-0">
+          {/* Page Content */}
+          <div className="flex-1 overflow-auto">
+            <div className="container mx-auto px-4 lg:px-6 py-4">
+              {renderContent()}
+            </div>
           </div>
-          <MobileNav isDesktop={true} />
-        </aside>
-      )}
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col pb-20 lg:pb-0">
-        {/* Desktop Header with ticker */}
-        {isDesktop && <DesktopHeader />}
-        
-        {/* Page Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="container mx-auto px-4 lg:px-6 py-4">
-            {renderContent()}
-          </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Mobile Bottom Navigation - only show on mobile */}
       {!isDesktop && (
@@ -116,6 +111,8 @@ const MobileLayout = () => {
 
       {/* Assistant Panel - Shows on both mobile and desktop */}
       <AssistantPanel />
+      {/* Gesture Layer for quick mode switching (swipe) */}
+      <GestureLayer />
     </div>
   );
 };

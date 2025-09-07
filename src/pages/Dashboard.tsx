@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { 
   TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, 
   MessageCircle, LineChart, AlertCircle, Zap, Search,
@@ -14,7 +14,16 @@ import ClickableEntity from '../components/ClickableEntity';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import { api } from '../api/client';
+import { computeMarketStatus } from '../utils/marketStatus';
 import WatchlistCard from '../components/WatchlistCard';
+// Removed profile tiles (day/swing/options/invest) per request
+// Experience level selector removed per request
+
+// Lazy load dashboard components for better performance
+const DayTradingDashboard = lazy(() => import('./dashboards/DayTradingDashboard'));
+const SwingTradingDashboard = lazy(() => import('./dashboards/SwingTradingDashboard'));
+const OptionsTradingDashboard = lazy(() => import('./dashboards/OptionsTradingDashboard'));
+const LongTermInvestingDashboard = lazy(() => import('./dashboards/LongTermInvestingDashboard'));
 
 const Dashboard = () => {
   const { 
@@ -24,117 +33,24 @@ const Dashboard = () => {
     setSelectedSymbol, 
     setMarketStatus,
     setActiveHelper,
-    setHelperContext
+    setHelperContext,
+    tradingProfile
   } = useAppStore();
   
-  // Calculate market status and time remaining
-  const calculateMarketStatus = () => {
-    const now = new Date();
-    const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
-    const hours = easternTime.getHours();
-    const minutes = easternTime.getMinutes();
-    const day = easternTime.getDay();
-    
-    // Market hours in minutes from midnight
-    const preMarketStart = 4 * 60; // 4:00 AM ET
-    const marketOpen = 9 * 60 + 30; // 9:30 AM ET
-    const marketClose = 16 * 60; // 4:00 PM ET
-    const afterHoursEnd = 20 * 60; // 8:00 PM ET
-    const currentMinutes = hours * 60 + minutes;
-    
-    // Helper to calculate time until next market open
-    const getTimeUntilOpen = () => {
-      let minutesUntilOpen;
-      if (day === 5 && currentMinutes >= afterHoursEnd) {
-        // Friday after 8pm - market opens Monday
-        minutesUntilOpen = (7 - day) * 24 * 60 + (24 - hours) * 60 - minutes + marketOpen;
-      } else if (day === 6) {
-        // Saturday - market opens Monday
-        minutesUntilOpen = (7 - day) * 24 * 60 + (24 - hours) * 60 - minutes + marketOpen;
-      } else if (day === 0) {
-        // Sunday - market opens Monday
-        minutesUntilOpen = (24 - hours) * 60 - minutes + marketOpen;
-      } else if (currentMinutes >= afterHoursEnd) {
-        // Weekday after 8pm - market opens tomorrow
-        minutesUntilOpen = (24 - hours) * 60 - minutes + marketOpen;
-      } else {
-        // Same day
-        minutesUntilOpen = marketOpen - currentMinutes;
-      }
-      
-      const hoursUntilOpen = Math.floor(minutesUntilOpen / 60);
-      const minsUntilOpen = minutesUntilOpen % 60;
-      return `Opens in ${hoursUntilOpen}h ${minsUntilOpen}m`;
-    };
-    
-    // Weekend
-    if (day === 0 || day === 6) {
-      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
-    }
-    
-    // Weekday schedule
-    if (currentMinutes < preMarketStart) {
-      // Closed (midnight to 4am)
-      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
-    } else if (currentMinutes >= preMarketStart && currentMinutes < marketOpen) {
-      // Pre-market (4am to 9:30am)
-      const minutesUntilOpen = marketOpen - currentMinutes;
-      const hoursUntilOpen = Math.floor(minutesUntilOpen / 60);
-      const minsUntilOpen = minutesUntilOpen % 60;
-      return { 
-        status: 'pre-market', 
-        timeRemaining: `Opens in ${hoursUntilOpen}h ${minsUntilOpen}m` 
-      };
-    } else if (currentMinutes >= marketOpen && currentMinutes < marketClose) {
-      // Market open (9:30am to 4pm)
-      const minutesUntilClose = marketClose - currentMinutes;
-      const hoursUntilClose = Math.floor(minutesUntilClose / 60);
-      const minsUntilClose = minutesUntilClose % 60;
-      return { 
-        status: 'open', 
-        timeRemaining: `Closes in ${hoursUntilClose}h ${minsUntilClose}m` 
-      };
-    } else if (currentMinutes >= marketClose && currentMinutes < afterHoursEnd) {
-      // After-hours (4pm to 8pm)
-      const minutesUntilEnd = afterHoursEnd - currentMinutes;
-      const hoursUntilEnd = Math.floor(minutesUntilEnd / 60);
-      const minsUntilEnd = minutesUntilEnd % 60;
-      return { 
-        status: 'after-hours', 
-        timeRemaining: `After-hours ends in ${hoursUntilEnd}h ${minsUntilEnd}m` 
-      };
-    } else {
-      // Closed (8pm to midnight)
-      return { status: 'closed', timeRemaining: getTimeUntilOpen() };
-    }
-  };
+  // (Market status computation moved to ticker bar and store effect)
   
-  const [marketInfo, setMarketInfo] = React.useState(calculateMarketStatus());
-  
-  // Update market status in store and local state
+  // Keep store marketStatus updated (used for polling cadence)
   React.useEffect(() => {
-    const updateMarketStatus = () => {
-      const info = calculateMarketStatus();
-      setMarketInfo(info);
-      // Update store with proper status
-      if (info.status === 'open') {
-        setMarketStatus('open');
-      } else if (info.status === 'pre-market') {
-        setMarketStatus('pre-market');
-      } else if (info.status === 'after-hours') {
-        setMarketStatus('after-hours');
-      } else {
-        setMarketStatus('closed');
-      }
+    const applyStatus = () => {
+      const s = computeMarketStatus();
+      if (s.phase === 'open') setMarketStatus('open');
+      else if (s.phase === 'pre') setMarketStatus('pre-market');
+      else if (s.phase === 'after') setMarketStatus('after-hours');
+      else setMarketStatus('closed');
     };
-
-    // Update immediately on mount
-    updateMarketStatus();
-    
-    // Then update every minute
-    const interval = setInterval(updateMarketStatus, 60000);
-    
-    return () => clearInterval(interval);
+    applyStatus();
+    const id = setInterval(applyStatus, 60000);
+    return () => clearInterval(id);
   }, [setMarketStatus]);
   const { data: marketData, isLoading } = useMarketDataQuery(
     watchlist,
@@ -192,44 +108,43 @@ const Dashboard = () => {
   // Check if any critical data is loading
   const isLoadingCritical = breadthLoading;
 
-  return (
-    <div className="p-4 space-y-4 max-w-7xl mx-auto">
-      {/* Market Status Card */}
-      <div className="max-w-sm">
-        <div 
-          className="rounded-xl p-4 border"
-          style={{ 
-            backgroundColor: sigmatiqTheme.colors.background.secondary,
-            borderColor: sigmatiqTheme.colors.border.default 
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
-              MARKET STATUS
-            </span>
-            <div 
-              className="w-2 h-2 rounded-full animate-pulse"
-              style={{ 
-                backgroundColor: marketInfo.status === 'open' 
-                  ? sigmatiqTheme.colors.status.success 
-                  : marketInfo.status === 'pre-market' || marketInfo.status === 'after-hours'
-                  ? sigmatiqTheme.colors.status.warning
-                  : sigmatiqTheme.colors.status.error 
-              }}
-            />
-          </div>
-          <div className="text-lg font-bold mb-1" style={{ color: sigmatiqTheme.colors.text.primary }}>
-            {marketInfo.status === 'open' ? 'Markets Open' : 
-             marketInfo.status === 'pre-market' ? 'Pre-Market' :
-             marketInfo.status === 'after-hours' ? 'After Hours' : 'Markets Closed'}
-          </div>
-          <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-            {marketInfo.timeRemaining}
-          </div>
-        </div>
-      </div>
+  // Render profile-specific dashboard
+  const renderProfileDashboard = () => {
+    switch (tradingProfile) {
+      case 'day':
+        return <DayTradingDashboard />;
+      case 'swing':
+        return <SwingTradingDashboard />;
+      case 'options':
+        return <OptionsTradingDashboard />;
+      case 'investing':
+        return <LongTermInvestingDashboard />;
+      default:
+        return <DayTradingDashboard />;
+    }
+  };
 
-      {/* Market Sentiment & Breadth */}
+  return (
+    <div className="space-y-4 max-w-7xl mx-auto">
+      {/* Profile tiles removed per request */}
+      
+      <div className="p-4 space-y-4">
+        {/* Experience level selector removed */}
+
+        {/* Market Status card removed; status displayed in ticker bar */}
+
+      {/* Profile-specific Dashboard */}
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-64">
+          <LoadingIndicator message="Loading dashboard" size="large" />
+        </div>
+      }>
+        {renderProfileDashboard()}
+      </Suspense>
+
+      {/* Legacy dashboard content - keeping market breadth for now */}
+      {false && (
+      <>
       <div className="grid grid-cols-1 gap-4">
         {/* Market Breadth */}
         <div 
@@ -239,7 +154,7 @@ const Dashboard = () => {
             borderColor: sigmatiqTheme.colors.border.default 
           }}
         >
-          <h3 className="text-sm font-semibold mb-3" style={{ color: sigmatiqTheme.colors.text.primary }}>
+          <h3 className="text-base font-semibold mb-3" style={{ color: sigmatiqTheme.colors.text.primary }}>
             Market Breadth (S&P 500)
           </h3>
           {breadthLoading ? (
@@ -281,24 +196,24 @@ const Dashboard = () => {
               )}
               <div className="pt-2 mt-2 border-t" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                  <span className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
                     52w Highs
                   </span>
-                  <span className="text-xs font-semibold" style={{ color: sigmatiqTheme.colors.status.success }}>
+                  <span className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.status.success }}>
                     {marketBreadth.highs52w}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                  <span className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
                     52w Lows
                   </span>
-                  <span className="text-xs font-semibold" style={{ color: sigmatiqTheme.colors.status.error }}>
+                  <span className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.status.error }}>
                     {marketBreadth.lows52w}
                   </span>
                 </div>
               </div>
               <div className="pt-2 border-t" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
-                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
                   {advancePercent}% advancing ({marketBreadth.cap} stocks sampled)
                 </div>
                 {/* Visual bar */}
@@ -333,10 +248,10 @@ const Dashboard = () => {
                     <div className="space-y-3">
                       {aiInsights.preview.opportunities.slice(0, 2).map((opp: any, idx: number) => (
                         <div key={idx}>
-                          <div className="font-semibold text-xs mb-1" style={{ color: sigmatiqTheme.colors.text.accent }}>
+                          <div className="font-semibold text-sm mb-1" style={{ color: sigmatiqTheme.colors.text.accent }}>
                             {opp.type}
                           </div>
-                          <div className="text-xs mb-1" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                          <div className="text-sm mb-1" style={{ color: sigmatiqTheme.colors.text.primary }}>
                             {opp.description}
                           </div>
                           {opp.symbols && opp.symbols.length > 0 && (
@@ -344,7 +259,7 @@ const Dashboard = () => {
                               {opp.symbols.map((sym: string) => (
                                 <span 
                                   key={sym}
-                                  className="px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80"
+                                  className="px-2 py-1 rounded text-sm font-medium cursor-pointer hover:opacity-80"
                                   style={{ 
                                     backgroundColor: sigmatiqTheme.colors.background.tertiary,
                                     color: sigmatiqTheme.colors.text.accent 
@@ -404,12 +319,12 @@ const Dashboard = () => {
             }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+              <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
                 Quick Screeners
               </h3>
               <button 
                 onClick={() => setActiveView('screener')}
-                className="text-xs flex items-center gap-1 hover:opacity-80"
+                className="text-sm flex items-center gap-1 hover:opacity-80"
                 style={{ color: sigmatiqTheme.colors.primary.teal }}
               >
                 View All <ChevronRight className="w-3 h-3" />
@@ -456,7 +371,7 @@ const Dashboard = () => {
               borderColor: sigmatiqTheme.colors.border.default 
             }}
           >
-            <h3 className="text-sm font-semibold mb-3" style={{ color: sigmatiqTheme.colors.text.primary }}>
+            <h3 className="text-base font-semibold mb-3" style={{ color: sigmatiqTheme.colors.text.primary }}>
               Your Recent Analysis
             </h3>
             <div className="space-y-2">
@@ -478,7 +393,7 @@ const Dashboard = () => {
             }}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+              <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
                 Top Gainers
               </h3>
               <ArrowUpRight className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.success }} />
@@ -494,7 +409,7 @@ const Dashboard = () => {
                     <MoverItem key={stock.symbol} {...stock} isGainer={true} />
                   ))
                 ) : (
-                  <div className="text-xs text-center py-2" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                  <div className="text-sm text-center py-2" style={{ color: sigmatiqTheme.colors.text.muted }}>
                     No data available
                   </div>
                 )}
@@ -511,7 +426,7 @@ const Dashboard = () => {
             }}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+              <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
                 Top Losers
               </h3>
               <ArrowDownRight className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.error }} />
@@ -527,7 +442,7 @@ const Dashboard = () => {
                     <MoverItem key={stock.symbol} {...stock} isGainer={false} />
                   ))
                 ) : (
-                  <div className="text-xs text-center py-2" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                  <div className="text-sm text-center py-2" style={{ color: sigmatiqTheme.colors.text.muted }}>
                     No data available
                   </div>
                 )}
@@ -591,6 +506,9 @@ const Dashboard = () => {
           onClick={() => console.log('Alerts')}
         />
       </div>
+      </>
+      )}
+      </div>
     </div>
   );
 };
@@ -611,7 +529,7 @@ const MarketIndexCard = ({ name, value, change, changePercent }: any) => {
       }}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
+        <span className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
           {name}
         </span>
         {isPositive ? (
@@ -620,7 +538,7 @@ const MarketIndexCard = ({ name, value, change, changePercent }: any) => {
           <TrendingDown className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.error }} />
         )}
       </div>
-      <div className="text-lg font-bold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+      <div className="text-xl font-bold" style={{ color: sigmatiqTheme.colors.text.primary }}>
         ${displayValue}
       </div>
       <div className="text-sm" style={{ 
@@ -651,15 +569,15 @@ const AIInsightCard = ({ title, icon: Icon, content, actionLabel, onAction }: an
         <Icon className="w-4 h-4" />
       </div>
       <div className="flex-1">
-        <h4 className="font-medium text-sm mb-2" style={{ color: sigmatiqTheme.colors.text.primary }}>
+        <h4 className="font-medium text-base mb-2" style={{ color: sigmatiqTheme.colors.text.primary }}>
           {title}
         </h4>
-        <div className="text-xs leading-relaxed mb-3" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+        <div className="text-sm leading-relaxed mb-3" style={{ color: sigmatiqTheme.colors.text.secondary }}>
           {content}
         </div>
         <button 
           onClick={onAction}
-          className="text-xs font-medium hover:opacity-80"
+          className="text-sm font-medium hover:opacity-80"
           style={{ color: sigmatiqTheme.colors.primary.teal }}
         >
           {actionLabel} →
@@ -688,16 +606,16 @@ const ScreenerCard = ({ name, description, count, icon: Icon, onClick }: any) =>
       <div className="flex items-center gap-2">
         <Icon className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
         <div>
-          <div className="font-medium text-sm" style={{ color: sigmatiqTheme.colors.text.primary }}>
+          <div className="font-medium text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
             {name}
           </div>
-          <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
+          <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
             {description}
           </div>
         </div>
       </div>
       <div 
-        className="px-2 py-1 rounded text-xs font-medium"
+        className="px-2 py-1 rounded text-sm font-medium"
         style={{ 
           backgroundColor: sigmatiqTheme.colors.primary.teal + '20',
           color: sigmatiqTheme.colors.primary.teal
@@ -716,11 +634,11 @@ const MoverItem = ({ symbol, price, change, changePercent, volume, isGainer }: a
     </ClickableEntity>
     <div className="text-right">
       {price && (
-        <div className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
+        <div className="text-base font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
           ${typeof price === 'number' ? price.toFixed(2) : price}
         </div>
       )}
-      <div className="text-xs" style={{ 
+      <div className="text-sm" style={{ 
         color: isGainer ? sigmatiqTheme.colors.status.success : sigmatiqTheme.colors.status.error 
       }}>
         {isGainer ? '+' : ''}{typeof changePercent === 'number' ? changePercent.toFixed(2) : changePercent}%
@@ -735,11 +653,11 @@ const RecentItem = ({ symbol, time, type }: any) => (
       <ClickableEntity type="symbol" value={symbol}>
         ${symbol}
       </ClickableEntity>
-      <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
+      <span className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
         {type}
       </span>
     </div>
-    <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+    <span className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>
       {time}
     </span>
   </div>
@@ -763,7 +681,7 @@ const ToolCard = ({ icon: Icon, title, description, onClick }: any) => (
     }}
   >
     <Icon className="w-6 h-6 mb-2" style={{ color: sigmatiqTheme.colors.primary.teal }} />
-    <div className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
+    <div className="text-base font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
       {title}
     </div>
     <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>

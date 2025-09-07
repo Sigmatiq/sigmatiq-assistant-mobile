@@ -31,9 +31,10 @@ const buildApiPath = (service: 'core' | 'assistant', path: string): string => {
 // Market APIs
 export const marketApi = {
   // Get market breadth (advancing/declining stocks)
-  getMarketBreadth: async () => {
+  getMarketBreadth: async (opts?: { includeSymbols?: boolean; presetId?: string; timeframe?: string; cap?: number }) => {
+    const { includeSymbols = false, presetId = 'sp500', timeframe = 'day', cap = 100 } = opts || {};
     const response = await apiClient.get(buildApiPath('assistant', '/market/breadth'), {
-      params: { preset_id: 'sp500', timeframe: 'day', cap: 100 },  // Increased to 100 with caching
+      params: { preset_id: presetId, timeframe, cap, include_symbols: includeSymbols },  // Include lists optionally
       timeout: 25000  // 25 second timeout for initial breadth calculation
     });
     return response.data;
@@ -44,20 +45,19 @@ export const marketApi = {
     const response = await apiClient.get(buildApiPath('assistant', '/market/summary'), {
       params: { symbols: symbols.join(','), cap: 10 }
     });
-    // Transform response to expected format
-    if (response.data?.items) {
-      // Convert array of items to object keyed by symbol
-      const result: any = {};
-      response.data.items.forEach((item: any) => {
-        result[item.symbol] = {
-          symbol: item.symbol,
-          price: item.close || 100,
-          changePercent: item.day_change_pct || 0
-        };
-      });
-      return result;
+    // Core/Assistant returns a list of summaries; normalize to { [symbol]: { price, changePercent } }
+    const data = Array.isArray(response.data) ? response.data : [];
+    const result: Record<string, { symbol: string; price: number; changePercent: number }> = {};
+    for (const item of data) {
+      const sym = item?.symbol ?? '';
+      if (!sym) continue;
+      result[sym] = {
+        symbol: sym,
+        price: Number(item?.close ?? 0),
+        changePercent: Number(item?.day_change_pct ?? 0),
+      };
     }
-    return response.data;
+    return result;
   },
 
   // Get chart data for a symbol
@@ -154,7 +154,7 @@ export const watchlistApi = {
   
   getSnapshot: async (watchlistId: string, forceRefresh = false) => {
     const response = await apiClient.get(buildApiPath('assistant', `/watchlists/${watchlistId}/snapshot`), {
-      params: { force_refresh: forceRefresh }
+      params: { force_refresh: forceRefresh, detail: 'full' }
     });
     return response.data;
   },
@@ -180,6 +180,14 @@ export const assistantApi = {
   // Get market context
   getMarketContext: async (timeframe = 'day') => {
     const response = await apiClient.get(buildApiPath('assistant', '/context/market'), { params: { timeframe } });
+    return response.data;
+  },
+
+  // Get symbol context with real-time metrics
+  getSymbolContext: async (symbol: string, timeframe: 'day' | 'hour' | '5m' = 'day') => {
+    const response = await apiClient.get(buildApiPath('assistant', '/context/symbol'), { 
+      params: { symbol, timeframe } 
+    });
     return response.data;
   },
 
@@ -214,6 +222,27 @@ export const assistantApi = {
   },
 };
 
+// Fundamentals APIs
+export const fundamentalsApi = {
+  // Get company overview and fundamentals
+  getOverview: async (symbol: string) => {
+    const response = await apiClient.get(buildApiPath('assistant', `/fundamentals/overview`), {
+      params: { symbol }
+    });
+    return response.data;
+  }
+};
+
+// News APIs
+export const newsApi = {
+  // Get news with sentiment analysis for a symbol
+  getSentiment: async (symbol?: string) => {
+    const params = symbol ? { symbol } : {};
+    const response = await apiClient.get(buildApiPath('assistant', '/news/sentiment'), { params });
+    return response.data;
+  }
+};
+
 // Options APIs
 export const optionsApi = {
   // Get unusual options activity
@@ -234,6 +263,8 @@ export const api = {
   market: marketApi,
   screener: screenerApi,
   assistant: assistantApi,
+  fundamentals: fundamentalsApi,
+  news: newsApi,
   options: optionsApi,
   watchlists: watchlistApi
 };

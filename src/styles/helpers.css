@@ -1,0 +1,88 @@
+/* Helper styles for mobile view */
+
+/* Ensure helper content fills the drawer properly */
+.helper-mobile-view {
+  height: 100%;
+}
+
+.helper-mobile-view > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prevent flickering with will-change */
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Force hardware acceleration (scoped) */
+.fixed-accelerated {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Ticker scroll animation - pure CSS, no JS */
+@keyframes scrollTicker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-ticker {
+  display: flex;
+  animation: scrollTicker 20s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.animate-scroll-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* Pulse animation for market status */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Safe area utilities for devices with notches */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-left { padding-left: env(safe-area-inset-left); }
+.safe-right { padding-right: env(safe-area-inset-right); }
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up { animation: none !important; }
+  .animate-scroll-ticker { animation: none !important; }
+}

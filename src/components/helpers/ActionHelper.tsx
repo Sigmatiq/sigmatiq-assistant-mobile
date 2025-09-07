@@ -111,6 +111,9 @@ const ActionHelper: React.FC<Props> = ({
     queryKey: ['presets'],
     queryFn: api.assistant.getPresets,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   // Fetch watchlists
@@ -118,6 +121,9 @@ const ActionHelper: React.FC<Props> = ({
     queryKey: ['watchlists'],
     queryFn: api.watchlists.list,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   // Run screener mutation
