@@ -1,0 +1,13 @@
+name: Dev - Deploy Assistant Mobile
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  deploy:
+    uses: Sigmatiq/sigmatiq-orchestrator/.github/workflows/reusable-static-web.yml@main
+    with:
+      app_location: /
+      output_location: dist
+      env: dev
+    secrets: inherit
