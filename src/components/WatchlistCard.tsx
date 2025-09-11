@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, ChevronDown, ChevronUp, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { Eye, ChevronDown, ChevronUp, RefreshCw, TrendingUp, TrendingDown, Maximize2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
@@ -215,7 +215,7 @@ const WatchlistCard: React.FC = () => {
       {isLoading ? (
         <LoadingIndicator message="Loading watchlist..." size="small" />
       ) : dataError ? (
-        <ErrorMessage message="Failed to load watchlist data" />
+        <ErrorMessage error={dataError} onRetry={() => refetch()} />
       ) : watchlistData && watchlistData.symbols.length > 0 ? (
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {watchlistData.symbols.map((symbol) => (
@@ -279,8 +279,22 @@ const WatchlistCard: React.FC = () => {
                 >
                   {symbol.change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {formatChange(symbol.change, symbol.change_percent)}
-                </div>
-              </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="View full watchlist"
+            className="p-1 rounded hover:opacity-80"
+            style={{ color: sigmatiqTheme.colors.text.secondary }}
+            onClick={() => {
+              const { setActiveHelper, setHelperContext } = useAppStore.getState();
+              setActiveHelper('list');
+              setHelperContext({ kind: 'watchlist', params: { watchlistId: selectedWatchlistId, detail: 'full' } });
+            }}
+          >
+            <Maximize2 size={16} />
+          </button>
+        </div>
+      </div>
             </div>
           ))}
         </div>

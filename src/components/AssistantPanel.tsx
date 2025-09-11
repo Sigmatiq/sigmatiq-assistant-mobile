@@ -1,4 +1,5 @@
 import React, { useState, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   ChevronUp, 
@@ -25,6 +26,7 @@ const ActionHelper = lazy(() => import('./helpers/ActionHelper'));
 const LearningHelper = lazy(() => import('./helpers/LearningHelper'));
 const StockInfoHelper = lazy(() => import('./helpers/StockInfoHelper'));
 const AssistantHelper = lazy(() => import('./helpers/AssistantHelper'));
+const ListHelper = lazy(() => import('./helpers/ListHelper'));
 
 // Import StockInfoPanel for embedding in tablet/desktop views
 import StockInfoPanel from './StockInfoPanel';
@@ -391,9 +393,38 @@ const AssistantPanel = () => {
               }}
             />
           )}
+          {activeHelper === 'list' && (
+            <ListHelper
+              context={helperContext as any}
+              onClose={clearHelper}
+              onAction={(action, data) => {
+                if (action === 'setHelper' && data?.helper) {
+                  setActiveHelper(data.helper);
+                  setHelperContext({ ...helperContext, ...data });
+                } else {
+                  handleHelperAction(action, data);
+                }
+              }}
+            />
+          )}
         </Suspense>
       </div>
     ), [activeHelper, helperContext, selectedSymbol, clearHelper, handleHelperAction, isMobile, setActiveHelper, setHelperContext]);
+
+    // Prevent background scroll when helper is open
+    React.useEffect(() => {
+      const prevOverflow = document.body.style.overflow;
+      const prevPosition = document.body.style.position;
+      const prevWidth = document.body.style.width;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'relative';
+      document.body.style.width = '100%';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.position = prevPosition;
+        document.body.style.width = prevWidth;
+      };
+    }, []);
 
     // Use drawer pattern for mobile and tablets (< 1280px)
     if (isMobile) {
@@ -440,29 +471,33 @@ const AssistantPanel = () => {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-50 bg-black bg-opacity-50 transition-opacity"
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
             onClick={clearHelper}
             style={{
-              animation: 'fadeIn 0.2s ease-out'
+              animation: 'fadeIn 0.2s ease-out',
+              zIndex: 9998
             }}
           />
           
           {/* Mobile/Tablet Helper Drawer */}
           <div 
-            className={isTablet ? "fixed right-0 top-0 h-screen z-60" : "fixed inset-x-0 bottom-0 z-60 animate-slide-up"}
+            className={isTablet ? "fixed right-0 top-0 h-screen" : "fixed inset-x-0 bottom-0 animate-slide-up"}
             role="dialog" aria-modal="true" aria-label="Assistant Helper"
             ref={drawerRef} tabIndex={-1}
             style={isTablet ? {
               width: '450px',
               height: '100vh',
               backgroundColor: sigmatiqTheme.colors.background.card,
-              boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.15)'
+              boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.15)',
+              zIndex: 9999
             } : {
               maxHeight: '85vh',
               backgroundColor: sigmatiqTheme.colors.background.card,
               borderTopLeftRadius: '20px',
               borderTopRightRadius: '20px',
-              boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.15)'
+              boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.15)',
+              overscrollBehavior: 'contain',
+              zIndex: 9999
             }}
           >
             {/* Drawer Handle - only on mobile */}
@@ -477,7 +512,8 @@ const AssistantPanel = () => {
             
             {/* Content - No header, helper provides its own */}
             <div className="overflow-y-auto safe-bottom" style={{ 
-              maxHeight: isTablet ? '100vh' : 'calc(85vh - 20px)' 
+              maxHeight: isTablet ? '100vh' : 'calc(85vh - 20px)',
+              overscrollBehavior: 'contain'
             }}>
               {HelperContent}
             </div>
@@ -487,10 +523,10 @@ const AssistantPanel = () => {
     }
 
     // Desktop modal
-    return (
+    const desktopModal = (
       <div 
-        className="fixed inset-0 z-60"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        className="fixed inset-0"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 9998 }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             clearHelper();
@@ -503,15 +539,18 @@ const AssistantPanel = () => {
             width: '90vw',
             maxWidth: '1400px',
             height: '95vh',
-            backgroundColor: sigmatiqTheme.colors.background.primary,
+            backgroundColor: sigmatiqTheme.colors.background.card,
             borderRadius: 16,
-            overflow: 'hidden'
+            overflow: 'hidden',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+            zIndex: 9999
           }}
         >
           {HelperContent}
         </div>
       </div>
     );
+    return createPortal(desktopModal, document.body);
   };
 
   // Mobile floating button and drawer

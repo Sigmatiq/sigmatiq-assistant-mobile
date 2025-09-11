@@ -24,15 +24,16 @@ const buildApiPath = (service: 'core' | 'assistant', path: string): string => {
     // In development, use proxy paths
     return `/api/${service}${path}`;
   }
-  // In production, use configured base URL
-  return `${API_BASE_URL}${path}`;
+  // In production, use configured base URL (normalized, no trailing slash)
+  const base = (API_BASE_URL || '').replace(/\/$/, '');
+  return `${base}${path}`;
 };
 
 // Market APIs
 export const marketApi = {
   // Get market breadth (advancing/declining stocks)
   getMarketBreadth: async (opts?: { includeSymbols?: boolean; presetId?: string; timeframe?: string; cap?: number }) => {
-    const { includeSymbols = false, presetId = 'sp500', timeframe = 'day', cap = 100 } = opts || {};
+    const { includeSymbols = false, presetId = 'sp500', timeframe = 'day', cap = 50 } = opts || {};
     const response = await apiClient.get(buildApiPath('assistant', '/market/breadth'), {
       params: { preset_id: presetId, timeframe, cap, include_symbols: includeSymbols },  // Include lists optionally
       timeout: 25000  // 25 second timeout for initial breadth calculation
@@ -109,28 +110,22 @@ export const screenerApi = {
   },
 
   // Get top movers from Polygon market movers endpoint
-  getTopMovers: async () => {
+  getTopMovers: async (opts?: { direction?: 'gainers' | 'losers' | 'both'; limit?: number; include_otc?: boolean; force_refresh?: boolean; }) => {
+    const { direction = 'both', limit = 5, include_otc = false, force_refresh = false } = opts || {};
     const response = await apiClient.get(buildApiPath('assistant', '/market/movers'), {
-      params: { direction: 'both', limit: 5, include_otc: false }
+      params: { direction, limit, include_otc, force_refresh }
     });
-    
-    // New endpoint returns gainers and losers directly
-    const gainers = (response.data?.gainers || []).map((item: any) => ({
+
+    // Endpoint returns gainers and losers arrays
+    const mapRow = (item: any) => ({
       symbol: item.symbol,
       name: item.name,
       price: item.price,
       change: item.change,
       changePercent: item.change_percent
-    }));
-    
-    const losers = (response.data?.losers || []).map((item: any) => ({
-      symbol: item.symbol,
-      name: item.name,
-      price: item.price,
-      change: item.change,
-      changePercent: item.change_percent
-    }));
-    
+    });
+    const gainers = (response.data?.gainers || []).map(mapRow);
+    const losers = (response.data?.losers || []).map(mapRow);
     return { gainers, losers };
   }
 };

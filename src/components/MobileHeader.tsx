@@ -3,6 +3,7 @@ import useAppStore from '../stores/useAppStore';
 import { useState, useEffect } from 'react';
 import Logo from './Logo';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
+import { computeMarketStatus } from '../utils/marketStatus';
 
 const MobileHeader = () => {
   const { toggleMobileMenu, marketStatus, setMarketStatus, watchlist, addToWatchlist, removeFromWatchlist } = useAppStore();
@@ -12,27 +13,21 @@ const MobileHeader = () => {
   const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-      
-      // Simple market status logic
-      const hour = new Date().getHours();
-      const day = new Date().getDay();
-      
-      if (day === 0 || day === 6) {
-        setMarketStatus('closed');
-      } else if (hour >= 9.5 && hour < 16) {
-        setMarketStatus('open');
-      } else if (hour >= 4 && hour < 9.5) {
-        setMarketStatus('pre-market');
-      } else if (hour >= 16 && hour < 20) {
-        setMarketStatus('after-hours');
-      } else {
-        setMarketStatus('closed');
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
+    const tick = () => setCurrentTime(new Date());
+    const updateStatus = () => {
+      const s = computeMarketStatus();
+      if (s.phase === 'open') setMarketStatus('open');
+      else if (s.phase === 'pre') setMarketStatus('pre-market');
+      else if (s.phase === 'after') setMarketStatus('after-hours');
+      else setMarketStatus('closed');
+    };
+    const t1 = setInterval(tick, 1000);
+    updateStatus();
+    const t2 = setInterval(updateStatus, 60_000);
+    return () => {
+      clearInterval(t1);
+      clearInterval(t2);
+    };
   }, [setMarketStatus]);
 
   const formatTime = (date: Date) => {

@@ -47,6 +47,7 @@ export const sigmatiqTheme = {
       primary: '#0A1414',   // sq-dark: Main background
       secondary: '#0F1A1A', // sq-surface: Card background
       tertiary: '#1A2F2F',  // sq-surface-2: Elevated elements
+      card: '#0F1A1A',      // explicit card surface (alias of secondary)
       hover: '#2A3F3F',     // sq-border: Hover state
     },
     

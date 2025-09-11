@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
-  Volume2
+  Volume2,
+  Maximize2
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { sigmatiqTheme } from '../../styles/sigmatiq-theme';
@@ -24,6 +25,7 @@ import ErrorMessage from '../../components/ErrorMessage';
 import ClickableEntity from '../../components/ClickableEntity';
 import { api } from '../../api/client';
 import WatchlistCard from '../../components/WatchlistCard';
+import { useFocusSymbolData } from '../../api/dashboardQueries';
 import useSwipe from '../../hooks/useSwipe';
 
 /**
@@ -42,8 +44,10 @@ const DayTradingDashboard: React.FC = () => {
     setSelectedSymbol,
     setActiveHelper,
     setHelperContext,
-    experience
+    experience,
+    activeHelper
   } = useAppStore();
+  const isHelperOpen = Boolean(activeHelper);
 
   // Fetch watchlist data with intraday metrics
   const { data: watchlistData, isLoading: watchlistLoading } = useQuery({
@@ -54,15 +58,15 @@ const DayTradingDashboard: React.FC = () => {
       const data = await api.market.getMarketSummary(watchlist);
       return data;
     },
-    refetchInterval: marketStatus === 'open' ? 60000 : false,
+    refetchInterval: isHelperOpen ? false : (marketStatus === 'open' ? 60000 : false),
     staleTime: 30000,
   });
 
   // Fetch market breadth
-  const { data: breadthData, isLoading: breadthLoading, dataUpdatedAt: breadthUpdatedAt } = useQuery({
+  const { data: breadthData, isLoading: breadthLoading, error: breadthError, dataUpdatedAt: breadthUpdatedAt, refetch: refetchBreadth } = useQuery({
     queryKey: ['marketBreadth', 'day', 'withSymbols'],
-    queryFn: () => api.market.getMarketBreadth({ includeSymbols: true, presetId: 'sp500', timeframe: 'day', cap: 100 }),
-    refetchInterval: marketStatus === 'open' ? 120000 : false,
+    queryFn: () => api.market.getMarketBreadth({ includeSymbols: true, presetId: 'sp500', timeframe: 'day', cap: 50 }),
+    refetchInterval: isHelperOpen ? false : (marketStatus === 'open' ? 120000 : false),
     staleTime: 60000,
   });
 
@@ -73,14 +77,14 @@ const DayTradingDashboard: React.FC = () => {
     queryKey: ['breadthHighsQuotes', highsSyms.join(',')],
     queryFn: async () => api.market.getMarketSummary(highsSyms),
     enabled: highsSyms.length > 0,
-    refetchInterval: marketStatus === 'open' ? 60000 : false,
+    refetchInterval: isHelperOpen ? false : (marketStatus === 'open' ? 60000 : false),
     staleTime: 45000,
   });
   const { data: lowsQuotes, isLoading: lowsQuotesLoading } = useQuery({
     queryKey: ['breadthLowsQuotes', lowsSyms.join(',')],
     queryFn: async () => api.market.getMarketSummary(lowsSyms),
     enabled: lowsSyms.length > 0,
-    refetchInterval: marketStatus === 'open' ? 60000 : false,
+    refetchInterval: isHelperOpen ? false : (marketStatus === 'open' ? 60000 : false),
     staleTime: 45000,
   });
 
@@ -97,28 +101,31 @@ const DayTradingDashboard: React.FC = () => {
   });
 
   // Fetch top movers via Assistant adapter
-  const { data: moversData, isLoading: moversLoading, dataUpdatedAt: moversUpdatedAt } = useQuery({
+  const { data: moversData, isLoading: moversLoading, error: moversError, dataUpdatedAt: moversUpdatedAt, refetch: refetchMovers } = useQuery({
     queryKey: ['topMovers', 'day'],
     queryFn: api.screener.getTopMovers,
-    refetchInterval: marketStatus === 'open' ? 180000 : false,
+    refetchInterval: isHelperOpen ? false : (marketStatus === 'open' ? 180000 : false),
     staleTime: 90000,
   });
 
   // Fetch top opportunities
-  const { data: opportunitiesData, isLoading: oppsLoading } = useQuery({
+  const { data: opportunitiesData, isLoading: oppsLoading, error: oppsError, refetch: refetchOpps } = useQuery({
     queryKey: ['opportunities', 'day'],
     queryFn: () => api.assistant.ask('day trading opportunities with high RVOL', 'analysis'),
-    refetchInterval: 300000, // 5 minutes
+    refetchInterval: isHelperOpen ? false : 300000, // 5 minutes
     staleTime: 240000,
   });
 
   // AI Insights (preview)
-  const { data: aiInsights, isLoading: insightsLoading, dataUpdatedAt: insightsUpdatedAt } = useQuery({
+  const { data: aiInsights, isLoading: insightsLoading, error: insightsError, dataUpdatedAt: insightsUpdatedAt, refetch: refetchInsights } = useQuery({
     queryKey: ['aiInsights', 'day'],
     queryFn: () => api.assistant.ask('market opportunities today', 'preview'),
-    refetchInterval: 600000,
+    refetchInterval: isHelperOpen ? false : 600000,
     staleTime: 300000,
   });
+
+  // Focus symbol query (enabled when a symbol is selected)
+  const { data: focusData, isLoading: focusLoading, error: focusError, refetch: refetchFocus } = useFocusSymbolData(selectedSymbol || '', 'day');
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4">
@@ -183,6 +190,8 @@ const DayTradingDashboard: React.FC = () => {
           >
             {breadthLoading ? (
               <LoadingIndicator message="Loading breadth" size="small" />
+            ) : breadthError ? (
+              <ErrorMessage error={breadthError} onRetry={() => refetchBreadth()} />
             ) : breadthMode === 'counts' ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -364,8 +373,9 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* Top Gainers (mobile: full width; desktop: one third) */}
       <div 
-        className="rounded-xl border md:col-span-6 lg:col-span-4"
+        className="rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
         style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
+        onClick={() => { setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'gainers' } }); }}
       >
         <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
           <div className="flex items-center justify-between">
@@ -375,12 +385,22 @@ const DayTradingDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.muted }}>as of {fmtTime(moversUpdatedAt)}</span>
               <ArrowUpRight className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.success }} />
+              <button
+                aria-label="View all gainers"
+                className="p-1 rounded hover:opacity-80"
+                style={{ color: sigmatiqTheme.colors.text.secondary }}
+                onClick={(e) => { e.stopPropagation(); setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'gainers' } }); }}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4" onClick={(e) => e.stopPropagation()}>
           {moversLoading ? (
             <LoadingIndicator message="Loading gainers" size="small" />
+          ) : moversError ? (
+            <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
             <div className="space-y-2" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.gainers || []).slice(0, 5).map((s: any) => {
@@ -408,8 +428,9 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* Top Losers (mobile: full width; desktop: one third) */}
       <div 
-        className="rounded-xl border md:col-span-6 lg:col-span-4"
+        className="rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
         style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
+        onClick={() => { setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'losers' } }); }}
       >
         <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
           <div className="flex items-center justify-between">
@@ -419,12 +440,22 @@ const DayTradingDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.muted }}>as of {fmtTime(moversUpdatedAt)}</span>
               <ArrowDownRight className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.error }} />
+              <button
+                aria-label="View all losers"
+                className="p-1 rounded hover:opacity-80"
+                style={{ color: sigmatiqTheme.colors.text.secondary }}
+                onClick={(e) => { e.stopPropagation(); setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'losers' } }); }}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4" onClick={(e) => e.stopPropagation()}>
           {moversLoading ? (
             <LoadingIndicator message="Loading losers" size="small" />
+          ) : moversError ? (
+            <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
             <div className="space-y-2" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.losers || []).slice(0, 5).map((s: any) => {
@@ -471,39 +502,54 @@ const DayTradingDashboard: React.FC = () => {
           <div className="p-4 space-y-3" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
             {oppsLoading ? (
               <LoadingIndicator message="Finding opportunities" size="small" />
+            ) : oppsError ? (
+              <ErrorMessage error={oppsError} onRetry={() => refetchOpps()} />
             ) : (
-              <>
-                <div className="p-3 rounded-lg border cursor-pointer hover:scale-[1.01] transition-all" style={{ backgroundColor: sigmatiqTheme.colors.background.primary, borderColor: sigmatiqTheme.colors.border.default }}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <ClickableEntity type="symbol" value="AAPL">$AAPL</ClickableEntity>
-                      <span className="ml-2 text-xs px-2 py-0.5 rounded" style={{ backgroundColor: `${sigmatiqTheme.colors.status.success}20`, color: sigmatiqTheme.colors.status.success }}>Breakout</span>
+              (() => {
+                const opps = (opportunitiesData as any)?.preview?.opportunities || [];
+                if (!opps || opps.length === 0) {
+                  return (
+                    <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>
+                      No opportunities returned
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.primary.teal }}>Score: 72</div>
-                      <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Coverage: 85%</div>
-                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {opps.slice(0, 4).map((opp: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-lg border hover:scale-[1.01] transition-all"
+                           style={{ backgroundColor: sigmatiqTheme.colors.background.primary, borderColor: sigmatiqTheme.colors.border.default }}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                                {Array.isArray(opp.symbols) && opp.symbols.length > 0 ? opp.symbols.slice(0,3).join(', ') : (opp.type || 'Opportunity')}
+                              </span>
+                              {opp.type && (
+                                <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: `${sigmatiqTheme.colors.primary.teal}20`, color: sigmatiqTheme.colors.primary.teal }}>
+                                  {opp.type}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {opp.confidence != null && (
+                              <div className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.primary.teal }}>
+                                Conf: {Number(opp.confidence).toFixed(0)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {opp.description && (
+                          <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                            {opp.description}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    High RVOL (3.2x) with bullish <ClickableEntity type="indicator" value="MACD">MACD</ClickableEntity> crossover. Entry: $182.50, Stop: $180.00
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg border cursor-pointer hover:scale-[1.01] transition-all" style={{ backgroundColor: sigmatiqTheme.colors.background.primary, borderColor: sigmatiqTheme.colors.border.default }}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <ClickableEntity type="symbol" value="NVDA">$NVDA</ClickableEntity>
-                      <span className="ml-2 text-xs px-2 py-0.5 rounded" style={{ backgroundColor: `${sigmatiqTheme.colors.status.warning}20`, color: sigmatiqTheme.colors.status.warning }}>Reversal</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold" style={{ color: sigmatiqTheme.colors.primary.teal }}>Score: 65</div>
-                      <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Coverage: 73%</div>
-                    </div>
-                  </div>
-                  <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    Oversold <ClickableEntity type="indicator" value="RSI">RSI</ClickableEntity> (28) near support. Entry: $885.00, Stop: $875.00
-                  </div>
-                </div>
-              </>
+                );
+              })()
             )}
           </div>
         </div>
@@ -537,44 +583,50 @@ const DayTradingDashboard: React.FC = () => {
             </div>
             
             <div className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Price</div>
-                  <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    $182.45
+              {focusLoading ? (
+                <LoadingIndicator message="Loading focus symbol" size="small" />
+              ) : focusError ? (
+                <ErrorMessage error={focusError} onRetry={() => refetchFocus()} />
+              ) : focusData ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Price</div>
+                    <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                      {typeof focusData.price === 'number' ? `$${focusData.price.toFixed(2)}` : focusData.price}
+                    </div>
+                    <div className="text-xs" style={{ color: (focusData.change ?? 0) >= 0 ? sigmatiqTheme.colors.status.success : sigmatiqTheme.colors.status.error }}>
+                      {focusData.change != null ? `${(focusData.change >= 0 ? '+' : '')}${Number(focusData.change).toFixed(2)}%` : ''}
+                    </div>
                   </div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.status.success }}>
-                    +2.3%
+                  <div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>VWAP</div>
+                    <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                      {typeof focusData.vwap === 'number' ? `$${focusData.vwap.toFixed(2)}` : (focusData.vwap ?? '—')}
+                    </div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                      {focusData.vwap != null && focusData.price != null ? `${(((focusData.price as number) - (focusData.vwap as number)) / (focusData.vwap as number) * 100).toFixed(2)}% dist` : ''}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>RVOL</div>
+                    <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.primary.teal }}>
+                      {focusData.rvol != null ? `${Number(focusData.rvol).toFixed(2)}x` : '—'}
+                    </div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                      {focusData.rvol != null ? (Number(focusData.rvol) >= 1.5 ? 'High activity' : 'Normal') : ''}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Range %</div>
+                    <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                      {focusData.range != null ? `${Number(focusData.range).toFixed(0)}%` : '—'}
+                    </div>
+                    <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                      &nbsp;
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>VWAP</div>
-                  <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    $181.90
-                  </div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    +0.3% dist
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>RVOL</div>
-                  <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.primary.teal }}>
-                    2.4x
-                  </div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    High activity
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Range %</div>
-                  <div className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    68%
-                  </div>
-                  <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                    Near highs
-                  </div>
-                </div>
-              </div>
+              ) : null}
 
               {/* Badges */}
               <div className="flex gap-2 mt-4 flex-wrap">
@@ -622,6 +674,8 @@ const DayTradingDashboard: React.FC = () => {
         <div className="p-4">
           {insightsLoading ? (
             <LoadingIndicator message="Fetching insights" size="small" />
+          ) : insightsError ? (
+            <ErrorMessage error={insightsError} onRetry={() => refetchInsights()} />
           ) : (
             <div className="space-y-3" style={{ color: sigmatiqTheme.colors.text.secondary }}>
               {aiInsights?.preview?.opportunities && aiInsights.preview.opportunities.length > 0 ? (
@@ -700,49 +754,8 @@ const DayTradingDashboard: React.FC = () => {
               <Clock className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
             </div>
           </div>
-          
-          <div className="p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="text-xs font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                8:30 AM
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                  Economic Data: CPI
-                </div>
-                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                  High impact on markets
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="text-xs font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                Pre-mkt
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                  AAPL Earnings
-                </div>
-                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                  Before market open
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <div className="text-xs font-medium" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                2:00 PM
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                  Fed Minutes
-                </div>
-                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                  FOMC meeting minutes release
-                </div>
-              </div>
-            </div>
+          <div className="p-4">
+            <ErrorMessage error="Calendar is not wired to backend yet" />
           </div>
       </div>
 
@@ -759,87 +772,11 @@ const DayTradingDashboard: React.FC = () => {
               <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
                 Alerts Inbox
               </h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                  backgroundColor: sigmatiqTheme.colors.status.error,
-                  color: 'white'
-                }}>
-                  3
-                </span>
-                <Bell className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
-              </div>
+              <Bell className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
             </div>
           </div>
-          
-          <div className="p-4 space-y-3" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
-            <div 
-              className="p-3 rounded-lg border cursor-pointer hover:scale-[1.01] transition-all"
-              style={{ 
-                backgroundColor: sigmatiqTheme.colors.background.primary,
-                borderColor: sigmatiqTheme.colors.primary.teal 
-              }}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" style={{ color: sigmatiqTheme.colors.primary.teal }} />
-                  <span className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    NVDA Hit Target
-                  </span>
-                </div>
-                <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                  2m ago
-                </span>
-              </div>
-              <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                Price reached $890.00 target
-              </div>
-            </div>
-
-            <div 
-              className="p-3 rounded-lg border cursor-pointer hover:scale-[1.01] transition-all"
-              style={{ 
-                backgroundColor: sigmatiqTheme.colors.background.primary,
-                borderColor: sigmatiqTheme.colors.border.default 
-              }}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" style={{ color: sigmatiqTheme.colors.status.success }} />
-                  <span className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    SPY Breakout
-                  </span>
-                </div>
-                <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                  15m ago
-                </span>
-              </div>
-              <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                Breaking above resistance at $450
-              </div>
-            </div>
-
-            <div 
-              className="p-3 rounded-lg border cursor-pointer hover:scale-[1.01] transition-all"
-              style={{ 
-                backgroundColor: sigmatiqTheme.colors.background.primary,
-                borderColor: sigmatiqTheme.colors.border.default 
-              }}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <Volume2 className="w-4 h-4" style={{ color: sigmatiqTheme.colors.primary.coral }} />
-                  <span className="text-sm font-medium" style={{ color: sigmatiqTheme.colors.text.primary }}>
-                    TSLA High RVOL
-                  </span>
-                </div>
-                <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>
-                  30m ago
-                </span>
-              </div>
-              <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
-                Volume spike to 3.5x average
-              </div>
-            </div>
+          <div className="p-4">
+            <ErrorMessage error="Alerts are not wired to backend yet" />
           </div>
         </div>
     </div>
