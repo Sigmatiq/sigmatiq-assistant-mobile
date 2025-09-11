@@ -52,3 +52,11 @@ public/workbox-*.js
 /.vs
 /test-results
 /tests/visual
+
+
+# Sigmatiq runtime caches and dumps (do not commit)
+data_cache/
+products/*/data_cache/
+products/sigma-core/data_cache/
+data_dumps/
+products/*/data_dumps/

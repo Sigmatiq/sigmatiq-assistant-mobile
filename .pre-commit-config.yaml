@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: detect-private-key
+      - id: check-merge-conflict
+  - repo: local
+    hooks:
+      - id: block-cache-dumps
+        name: Block committing cache/dumps
+        language: python
+        entry: "python -c "import sys; sys.stderr.write('Do not commit cache/dumps files.
+'); sys.exit(1)""
+        files: "(^|/)(data_cache|data_dumps|products/.*/data_cache|products/.*/data_dumps)/"
