@@ -138,6 +138,69 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   const error = moversQuery.error || watchlistQuery.error || oppsQuery.error;
   const isFetchingMore = (kind === 'movers' && moversQuery.isFetching);
 
+  // Pull-to-refresh support for the scroll container
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDist, setPullDist] = useState(0);
+  const PULL_THRESHOLD = 60;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let startY = 0;
+    let active = false;
+
+    const onStart = (y: number) => {
+      // Only start if scrolled to top
+      if (el.scrollTop <= 0) {
+        startY = y;
+        active = true;
+        setIsPulling(true);
+        setPullDist(0);
+      }
+    };
+    const onMove = (y: number) => {
+      if (!active) return;
+      const dy = Math.max(0, y - startY);
+      // Apply dampening for nicer feel
+      const dist = Math.min(120, dy * 0.5);
+      setPullDist(dist);
+    };
+    const onEnd = async () => {
+      if (!active) return;
+      const shouldRefresh = pullDist >= PULL_THRESHOLD;
+      // Reset visuals
+      setIsPulling(false);
+      setPullDist(0);
+      active = false;
+      if (shouldRefresh) {
+        try { await onRefresh(); } catch {}
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => onStart(e.touches[0].clientY);
+    const handleTouchMove = (e: TouchEvent) => onMove(e.touches[0].clientY);
+    const handleTouchEnd = () => onEnd();
+    const handleMouseDown = (e: MouseEvent) => onStart(e.clientY);
+    const handleMouseMove = (e: MouseEvent) => onMove(e.clientY);
+    const handleMouseUp = () => onEnd();
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: true });
+    el.addEventListener('touchend', handleTouchEnd);
+    el.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, direction]);
+
   // IntersectionObserver to auto-load more (movers via backend; others via visibleCount)
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
