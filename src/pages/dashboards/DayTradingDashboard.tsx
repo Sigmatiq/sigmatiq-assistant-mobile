@@ -133,6 +133,8 @@ const DayTradingDashboard: React.FC = () => {
   const highsRef = React.useRef<HTMLDivElement | null>(null);
   const lowsRef = React.useRef<HTMLDivElement | null>(null);
   const oppsRef = React.useRef<HTMLDivElement | null>(null);
+  const calendarRef = React.useRef<HTMLDivElement | null>(null);
+  const alertsRef = React.useRef<HTMLDivElement | null>(null);
   const attachAutoHide = (ref: React.RefObject<HTMLDivElement>) => {
     React.useEffect(() => {
       const el = ref.current;
@@ -155,6 +157,8 @@ const DayTradingDashboard: React.FC = () => {
   attachAutoHide(highsRef);
   attachAutoHide(lowsRef);
   attachAutoHide(oppsRef);
+  attachAutoHide(calendarRef);
+  attachAutoHide(alertsRef);
 
   // Today's Calendar (Economic + Holidays)
   const region = (import.meta.env.VITE_REGION || 'US');
@@ -800,7 +804,7 @@ const DayTradingDashboard: React.FC = () => {
               <Clock className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
             </div>
           </div>
-          <div className="p-4 space-y-3">
+          <div ref={calendarRef} className="p-4 space-y-3 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
             {/* Economic Events Today */}
             <div>
               <div className="text-sm font-semibold mb-2" style={{ color: sigmatiqTheme.colors.text.primary }}>Economic</div>
@@ -862,7 +866,7 @@ const DayTradingDashboard: React.FC = () => {
               <Bell className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
             </div>
           </div>
-          <div className="p-4">
+          <div ref={alertsRef} className="p-4 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
             <ErrorMessage error="Alerts are not wired to backend yet" />
           </div>
         </div>
