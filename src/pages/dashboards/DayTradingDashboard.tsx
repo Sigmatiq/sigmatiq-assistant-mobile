@@ -778,7 +778,7 @@ const DayTradingDashboard: React.FC = () => {
               {econQ.isLoading ? (
                 <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>Loading…</div>
               ) : econQ.error ? (
-                <ErrorMessage error={econQ.error as any} />
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Service unavailable</div>
               ) : (Array.isArray(econQ.data) && econQ.data.length > 0) ? (
                 <div className="space-y-1">
                   {econQ.data.slice(0,6).map((e: any, i: number) => (
@@ -804,7 +804,7 @@ const DayTradingDashboard: React.FC = () => {
               {holQ.isLoading ? (
                 <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>Loading…</div>
               ) : holQ.error ? (
-                <ErrorMessage error={holQ.error as any} />
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>Service unavailable</div>
               ) : todaysHolidays.length > 0 ? (
                 <div className="space-y-1">
                   {todaysHolidays.map((h: any, i: number) => (
