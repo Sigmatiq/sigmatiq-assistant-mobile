@@ -155,7 +155,7 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
       }));
     }
     return [];
-  }, [kind, moversQuery.data, watchlistQuery.data, oppsQuery.data, direction]);
+  }, [kind, moversQuery.data, watchlistQuery.data, oppsQuery.data, direction, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil((items?.length || 0) / PAGE_SIZE));
   const paged = useMemo(() => {
