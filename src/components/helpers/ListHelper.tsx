@@ -321,28 +321,26 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
           <div className="flex items-center gap-2">
             {[{k:'change',label:'Chg%'},{k:'abs_change',label:'|Chg|%'},{k:'price',label:'Price'},{k:'symbol',label:'A→Z'}].map(({k,label}: any) => (
               <button key={k}
-                onClick={() => setSortKey(k)}
-                className="px-2 py-1 rounded text-xs"
+                onClick={() => {
+                  if (sortKey === k) {
+                    setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortKey(k);
+                    setSortDir(k === 'symbol' ? 'asc' : 'desc');
+                  }
+                }}
+                className="px-2 py-1 rounded text-xs flex items-center gap-1"
                 style={{
                   backgroundColor: (sortKey === k) ? sigmatiqTheme.colors.primary.teal + '20' : 'transparent',
                   color: (sortKey === k) ? sigmatiqTheme.colors.primary.teal : sigmatiqTheme.colors.text.secondary,
                   border: `1px solid ${(sortKey === k) ? sigmatiqTheme.colors.primary.teal + '40' : sigmatiqTheme.colors.border.default}`
                 }}
-              >{label}</button>
+              >
+                <span>{label}</span>
+                {(sortKey === k) && (sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+              </button>
             ))}
-            <button
-              aria-label="Toggle sort order"
-              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-              className="px-2 py-1 rounded text-xs flex items-center gap-1"
-              style={{
-                backgroundColor: sigmatiqTheme.colors.background.primary,
-                border: `1px solid ${sigmatiqTheme.colors.border.default}`,
-                color: sigmatiqTheme.colors.text.secondary
-              }}
-            >
-              {sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-              {sortDir.toUpperCase()}
-            </button>
+            
           </div>
         </div>
       )}
