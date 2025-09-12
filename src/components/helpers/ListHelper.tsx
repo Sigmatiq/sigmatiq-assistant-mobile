@@ -29,6 +29,10 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   // Manual refresh token to force re-fetch and enable server force_refresh
   const [refreshToken, setRefreshToken] = useState(0);
+  // User-controlled sorting
+  type SortKey = 'change' | 'abs_change' | 'price' | 'symbol';
+  const [sortKey, setSortKey] = useState<SortKey>(() => (direction === 'both' ? 'abs_change' : 'change'));
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() => (direction === 'losers' ? 'asc' : 'desc'));
 
   // Fetchers per kind
   // Infinite movers (gainers/losers/both). Backend supports limit; we grow limit progressively.
@@ -94,17 +98,13 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
       const pages = moversQuery.data?.pages || [];
       // Use last page since each page grows the limit; but to be safe, take the last data set
       const last = pages[pages.length - 1]?.data || { gainers: [], losers: [] };
-      // Normalize and sort gainers/losers
       const g = (last.gainers || []).slice();
       const l = (last.losers || []).slice();
-      const pct = (r: any) => Number(r.changePercent ?? r.change ?? 0);
-      g.sort((a: any, b: any) => pct(b) - pct(a)); // biggest winners first
-      l.sort((a: any, b: any) => pct(a) - pct(b)); // biggest losers first
       const base = direction === 'gainers' 
         ? g 
         : direction === 'losers' 
           ? l 
-          : [...g, ...l].sort((a, b) => Math.abs(pct(b)) - Math.abs(pct(a))); // strongest moves overall
+          : [...g, ...l];
       // Normalize fields and de-dup by symbol
       const mapped = base.map((it: any) => ({
         symbol: it.symbol,
@@ -113,7 +113,28 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
         changePercent: Number(it.change_percent ?? it.changePercent ?? it.change ?? 0),
       }));
       const seen = new Set<string>();
-      return mapped.filter((r) => (r.symbol && !seen.has(r.symbol) ? (seen.add(r.symbol), true) : false));
+      const deduped = mapped.filter((r) => (r.symbol && !seen.has(r.symbol) ? (seen.add(r.symbol), true) : false));
+      // Apply sorting
+      const value = (r: any) => {
+        switch (sortKey) {
+          case 'change': return r.changePercent || 0;
+          case 'abs_change': return Math.abs(r.changePercent || 0);
+          case 'price': return r.price || 0;
+          case 'symbol': return r.symbol || '';
+          default: return 0;
+        }
+      };
+      const sorted = deduped.sort((a: any, b: any) => {
+        const av = value(a);
+        const bv = value(b);
+        if (sortKey === 'symbol') {
+          const cmp = String(av).localeCompare(String(bv));
+          return sortDir === 'asc' ? cmp : -cmp;
+        }
+        const cmp = Number(av) - Number(bv);
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+      return sorted;
     }
     if (kind === 'watchlist') {
       const syms = watchlistQuery.data?.symbols || [];
@@ -145,6 +166,11 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   useEffect(() => {
     setPage(1);
     setVisibleCount(PAGE_SIZE);
+    // Reset default sorting when switching movers direction
+    if (kind === 'movers') {
+      setSortKey(direction === 'both' ? 'abs_change' : 'change');
+      setSortDir(direction === 'losers' ? 'asc' : 'desc');
+    }
   }, [kind, direction]);
 
   const loading = moversQuery.isLoading || watchlistQuery.isLoading || oppsQuery.isLoading;
@@ -265,7 +291,7 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
             {title}
           </h2>
           {kind === 'movers' && (
-            <div className="ml-2 flex items-center gap-1">
+            <div className="ml-2 flex items-center gap-2">
               {[{id:'gainers',label:'G'}, {id:'losers',label:'L'}, {id:'both',label:'All'}].map(({id,label}) => (
                 <button key={id}
                   onClick={() => setDirection(id as any)}
@@ -278,6 +304,29 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
                   {label}
                 </button>
               ))}
+              {/* Sort controls */}
+              <select
+                aria-label="Sort by"
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                className="text-xs px-2 py-1 rounded border"
+                style={{ borderColor: sigmatiqTheme.colors.border.default, background: 'transparent', color: sigmatiqTheme.colors.text.secondary }}
+              >
+                <option value="change">Change %</option>
+                <option value="abs_change">Abs Change %</option>
+                <option value="price">Price</option>
+                <option value="symbol">Symbol</option>
+              </select>
+              <select
+                aria-label="Sort order"
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}
+                className="text-xs px-2 py-1 rounded border"
+                style={{ borderColor: sigmatiqTheme.colors.border.default, background: 'transparent', color: sigmatiqTheme.colors.text.secondary }}
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
             </div>
           )}
         </div>
