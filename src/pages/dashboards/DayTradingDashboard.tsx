@@ -23,7 +23,7 @@ import useAppStore from '../../stores/useAppStore';
 import LoadingIndicator from '../../components/LoadingIndicator';
 import ErrorMessage from '../../components/ErrorMessage';
 import ClickableEntity from '../../components/ClickableEntity';
-import { api } from '../../api/client';
+import { api, calendarApi } from '../../api/client';
 import WatchlistCard from '../../components/WatchlistCard';
 import { useFocusSymbolData } from '../../api/dashboardQueries';
 import useSwipe from '../../hooks/useSwipe';
@@ -126,6 +126,23 @@ const DayTradingDashboard: React.FC = () => {
 
   // Focus symbol query (enabled when a symbol is selected)
   const { data: focusData, isLoading: focusLoading, error: focusError, refetch: refetchFocus } = useFocusSymbolData(selectedSymbol || '', 'day');
+
+  // Today's Calendar (Economic + Holidays)
+  const region = (import.meta.env.VITE_REGION || 'US');
+  const todayISO = new Date().toISOString().slice(0,10);
+  const econQ = useQuery({
+    queryKey: ['calendar','economic', todayISO, region],
+    queryFn: () => calendarApi.getEconomicCalendar({ date: todayISO, region }),
+    staleTime: 15 * 60 * 1000,
+    refetchInterval: marketStatus === 'open' ? 15 * 60 * 1000 : false,
+  });
+  const d = new Date();
+  const holQ = useQuery({
+    queryKey: ['calendar','holidays', d.getFullYear(), d.getMonth()+1, region],
+    queryFn: () => calendarApi.getHolidays({ year: d.getFullYear(), month: d.getMonth()+1, region }),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+  const todaysHolidays = (holQ.data || []).filter((h: any) => (h.date || h.date_local) === todayISO);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4">
@@ -754,8 +771,53 @@ const DayTradingDashboard: React.FC = () => {
               <Clock className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
             </div>
           </div>
-          <div className="p-4">
-            <ErrorMessage error="Calendar is not wired to backend yet" />
+          <div className="p-4 space-y-3">
+            {/* Economic Events Today */}
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: sigmatiqTheme.colors.text.primary }}>Economic</div>
+              {econQ.isLoading ? (
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>Loading…</div>
+              ) : econQ.error ? (
+                <ErrorMessage error={econQ.error as any} />
+              ) : (Array.isArray(econQ.data) && econQ.data.length > 0) ? (
+                <div className="space-y-1">
+                  {econQ.data.slice(0,6).map((e: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded border" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.muted }}>{e.time_local || e.time || '-'}</span>
+                        <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.primary }}>{e.name || e.event || 'Event'}</span>
+                      </div>
+                      <div className="text-right text-[11px]" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                        {e.actual != null && <div>Actual: {e.actual}</div>}
+                        {e.consensus != null && <div>Est: {e.consensus}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>No events today</div>
+              )}
+            </div>
+            {/* Holidays Today */}
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: sigmatiqTheme.colors.text.primary }}>Holidays</div>
+              {holQ.isLoading ? (
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>Loading…</div>
+              ) : holQ.error ? (
+                <ErrorMessage error={holQ.error as any} />
+              ) : todaysHolidays.length > 0 ? (
+                <div className="space-y-1">
+                  {todaysHolidays.map((h: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded border" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
+                      <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.primary }}>{h.name || h.title || 'Holiday'}</div>
+                      <div className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.secondary }}>{h.status || h.market_status || ''}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>No holidays today</div>
+              )}
+            </div>
           </div>
       </div>
 
