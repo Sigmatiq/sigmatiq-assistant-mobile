@@ -127,6 +127,29 @@ const DayTradingDashboard: React.FC = () => {
   // Focus symbol query (enabled when a symbol is selected)
   const { data: focusData, isLoading: focusLoading, error: focusError, refetch: refetchFocus } = useFocusSymbolData(selectedSymbol || '', 'day');
 
+  // Auto-hide scrollbar helpers (adds 'scrolling' class briefly on scroll)
+  const gainersRef = React.useRef<HTMLDivElement | null>(null);
+  const losersRef = React.useRef<HTMLDivElement | null>(null);
+  const attachAutoHide = (ref: React.RefObject<HTMLDivElement>) => {
+    React.useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+      let tid: any = null;
+      const onScroll = () => {
+        el.classList.add('scrolling');
+        if (tid) clearTimeout(tid);
+        tid = setTimeout(() => el.classList.remove('scrolling'), 800);
+      };
+      el.addEventListener('scroll', onScroll, { passive: true } as any);
+      return () => {
+        el.removeEventListener('scroll', onScroll as any);
+        if (tid) clearTimeout(tid);
+      };
+    }, [ref]);
+  };
+  attachAutoHide(gainersRef);
+  attachAutoHide(losersRef);
+
   // Today's Calendar (Economic + Holidays)
   const region = (import.meta.env.VITE_REGION || 'US');
   const todayISO = new Date().toISOString().slice(0,10);
@@ -419,7 +442,7 @@ const DayTradingDashboard: React.FC = () => {
           ) : moversError ? (
             <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
-            <div className="space-y-2 thin-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
+            <div ref={gainersRef} className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.gainers || []).slice(0, 5).map((s: any) => {
                 const pct = Number(s.change_percent ?? s.changePercent ?? 0);
                 return (
@@ -474,7 +497,7 @@ const DayTradingDashboard: React.FC = () => {
           ) : moversError ? (
             <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
-            <div className="space-y-2 thin-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
+            <div ref={losersRef} className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.losers || []).slice(0, 5).map((s: any) => {
                 const pct = Number(s.change_percent ?? s.changePercent ?? 0);
                 return (
