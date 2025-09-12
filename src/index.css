@@ -49,6 +49,28 @@
   .safe-right {
     padding-right: env(safe-area-inset-right);
   }
+
+  /* Thin, subtle scrollbars for desktop (applies when class is added) */
+  .thin-scrollbar {
+    scrollbar-width: thin;                /* Firefox */
+    scrollbar-color: var(--sq-border) transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;                           /* Chrome/Safari/Edge */
+    height: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--sq-border);
+    border-radius: 8px;
+    border: 2px solid transparent;        /* creates a slimmer look */
+    background-clip: content-box;
+  }
+  .thin-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(42, 63, 63, 0.9); /* slightly stronger on hover */
+  }
 }
 
 /* Market ticker auto-scroll animation */

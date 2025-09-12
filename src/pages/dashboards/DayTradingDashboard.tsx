@@ -419,7 +419,7 @@ const DayTradingDashboard: React.FC = () => {
           ) : moversError ? (
             <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
-            <div className="space-y-2" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
+            <div className="space-y-2 thin-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.gainers || []).slice(0, 5).map((s: any) => {
                 const pct = Number(s.change_percent ?? s.changePercent ?? 0);
                 return (
@@ -474,7 +474,7 @@ const DayTradingDashboard: React.FC = () => {
           ) : moversError ? (
             <ErrorMessage error={moversError} onRetry={() => refetchMovers()} />
           ) : (
-            <div className="space-y-2" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
+            <div className="space-y-2 thin-scrollbar" style={{ maxHeight: '16rem', overflowY: 'auto' }}>
               {(moversData?.losers || []).slice(0, 5).map((s: any) => {
                 const pct = Number(s.change_percent ?? s.changePercent ?? 0);
                 return (
