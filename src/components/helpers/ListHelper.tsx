@@ -319,7 +319,7 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
             ))}
           </div>
           <div className="flex items-center gap-2">
-            {[{k:'change',label:'Chg%'},{k:'abs_change',label:'|Chg|%'},{k:'price',label:'Price'},{k:'symbol',label:'A→Z'}].map(({k,label}: any) => (
+            {([{k:'change',label:'Chg%'}, ...(direction === 'both' ? [{k:'abs_change',label:'Abs%'}] : []), {k:'price',label:'Price'},{k:'symbol',label:'A→Z'}] as any[]).map(({k,label}: any) => (
               <button key={k}
                 onClick={() => {
                   if (sortKey === k) {
