@@ -17,6 +17,8 @@ interface ListHelperProps {
 }
 
 const PAGE_SIZE = 20;
+// Backend enforces limit <= 20 for movers; keep MAX_LIMIT for other lists
+const MOVERS_API_LIMIT = 20;
 const MAX_LIMIT = 200;
 
 const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) => {
@@ -31,7 +33,8 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   const moversQuery = useInfiniteQuery({
     queryKey: ['listHelper', 'movers', direction],
     queryFn: async ({ pageParam = PAGE_SIZE }) => {
-      const limit = Math.min(Number(pageParam) || PAGE_SIZE, MAX_LIMIT);
+      // Server validates limit <= 20 -> cap to MOVERS_API_LIMIT
+      const limit = Math.min(Number(pageParam) || PAGE_SIZE, MOVERS_API_LIMIT);
       const res = await api.screener.getTopMovers({ direction, limit, include_otc: false, force_refresh: false });
       return { limit, data: res };
     },
@@ -41,9 +44,9 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
       const gLen = data?.gainers?.length || 0;
       const lLen = data?.losers?.length || 0;
       const combined = direction === 'gainers' ? gLen : direction === 'losers' ? lLen : (gLen + lLen);
-      const next = Number(limit || PAGE_SIZE) + PAGE_SIZE;
-      // If we already hit or exceeded combined length or max, stop.
-      if (next > MAX_LIMIT) return undefined;
+      // Backend caps limit; do not paginate beyond the first page
+      if ((limit || 0) >= MOVERS_API_LIMIT) return undefined;
+      const next = Math.min(Number(limit || PAGE_SIZE) + PAGE_SIZE, MOVERS_API_LIMIT);
       // Heuristic: if combined < limit, backend returned fewer than requested → no more
       if (combined < (limit || PAGE_SIZE)) return undefined;
       return next;
