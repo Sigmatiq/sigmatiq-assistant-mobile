@@ -72,20 +72,23 @@
     background-color: rgba(42, 63, 63, 0.9); /* slightly stronger on hover */
   }
 
-  /* Auto-hide variant: invisible until hover or programmatic 'scrolling' class */
-  .auto-hide-scrollbar {
-    scrollbar-color: transparent transparent; /* Firefox hide */
-  }
-  .auto-hide-scrollbar::-webkit-scrollbar-thumb {
-    background-color: transparent; /* WebKit hide */
-  }
-  .auto-hide-scrollbar:hover,
-  .auto-hide-scrollbar.scrolling {
-    scrollbar-color: var(--sq-border) transparent; /* Firefox show */
-  }
-  .auto-hide-scrollbar:hover::-webkit-scrollbar-thumb,
-  .auto-hide-scrollbar.scrolling::-webkit-scrollbar-thumb {
-    background-color: var(--sq-border); /* WebKit show */
+  /* Auto-hide variant: only apply on non-touch (desktop/laptop) */
+  @media (hover: hover) and (pointer: fine) {
+    /* Invisible until hover or programmatic 'scrolling' class */
+    .auto-hide-scrollbar {
+      scrollbar-color: transparent transparent; /* Firefox hide */
+    }
+    .auto-hide-scrollbar::-webkit-scrollbar-thumb {
+      background-color: transparent; /* WebKit hide */
+    }
+    .auto-hide-scrollbar:hover,
+    .auto-hide-scrollbar.scrolling {
+      scrollbar-color: var(--sq-border) transparent; /* Firefox show */
+    }
+    .auto-hide-scrollbar:hover::-webkit-scrollbar-thumb,
+    .auto-hide-scrollbar.scrolling::-webkit-scrollbar-thumb {
+      background-color: var(--sq-border); /* WebKit show */
+    }
   }
 }
 

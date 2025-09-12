@@ -130,6 +130,9 @@ const DayTradingDashboard: React.FC = () => {
   // Auto-hide scrollbar helpers (adds 'scrolling' class briefly on scroll)
   const gainersRef = React.useRef<HTMLDivElement | null>(null);
   const losersRef = React.useRef<HTMLDivElement | null>(null);
+  const highsRef = React.useRef<HTMLDivElement | null>(null);
+  const lowsRef = React.useRef<HTMLDivElement | null>(null);
+  const oppsRef = React.useRef<HTMLDivElement | null>(null);
   const attachAutoHide = (ref: React.RefObject<HTMLDivElement>) => {
     React.useEffect(() => {
       const el = ref.current;
@@ -149,6 +152,9 @@ const DayTradingDashboard: React.FC = () => {
   };
   attachAutoHide(gainersRef);
   attachAutoHide(losersRef);
+  attachAutoHide(highsRef);
+  attachAutoHide(lowsRef);
+  attachAutoHide(oppsRef);
 
   // Today's Calendar (Economic + Holidays)
   const region = (import.meta.env.VITE_REGION || 'US');
@@ -297,7 +303,7 @@ const DayTradingDashboard: React.FC = () => {
               </div>
             ) : breadthMode === 'highs' ? (
               <div className="py-3">
-                <div className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '12rem', overflowY: 'auto' }}>
+                <div ref={highsRef} className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '12rem', overflowY: 'auto' }}>
                   {highsQuotesLoading ? (
                     <LoadingIndicator message="Loading prices" size="small" />
                   ) : (
@@ -328,7 +334,7 @@ const DayTradingDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="py-3">
-                <div className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '12rem', overflowY: 'auto' }}>
+                <div ref={lowsRef} className="space-y-2 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '12rem', overflowY: 'auto' }}>
                   {lowsQuotesLoading ? (
                     <LoadingIndicator message="Loading prices" size="small" />
                   ) : (
@@ -539,7 +545,7 @@ const DayTradingDashboard: React.FC = () => {
               <Activity className="w-4 h-4" style={{ color: sigmatiqTheme.colors.primary.teal }} />
             </div>
           </div>
-          <div className="p-4 space-y-3 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
+          <div ref={oppsRef} className="p-4 space-y-3 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
             {oppsLoading ? (
               <LoadingIndicator message="Finding opportunities" size="small" />
             ) : oppsError ? (
