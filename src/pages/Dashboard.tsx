@@ -16,6 +16,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import { api } from '../api/client';
 import { computeMarketStatus } from '../utils/marketStatus';
 import WatchlistCard from '../components/WatchlistCard';
+import CalendarCard from '../components/CalendarCard';
 // Removed profile tiles (day/swing/options/invest) per request
 // Experience level selector removed per request
 
@@ -141,6 +142,9 @@ const Dashboard = () => {
       }>
         {renderProfileDashboard()}
       </Suspense>
+
+      {/* Economic + Holiday Calendar */}
+      <CalendarCard />
 
       {/* Legacy dashboard content - keeping market breadth for now */}
       {false && (

@@ -27,6 +27,7 @@ const LearningHelper = lazy(() => import('./helpers/LearningHelper'));
 const StockInfoHelper = lazy(() => import('./helpers/StockInfoHelper'));
 const AssistantHelper = lazy(() => import('./helpers/AssistantHelper'));
 const ListHelper = lazy(() => import('./helpers/ListHelper'));
+const CompanyCalendarHelper = lazy(() => import('./helpers/CompanyCalendarHelper'));
 
 // Import StockInfoPanel for embedding in tablet/desktop views
 import StockInfoPanel from './StockInfoPanel';
@@ -211,6 +212,16 @@ const AssistantPanel = () => {
             if (selectedSymbol) {
               setActiveHelper('stockInfo');
               setHelperContext({ symbol: selectedSymbol, source: 'panel', trigger: 'news' });
+            }
+          }
+        },
+        {
+          label: 'Company Calendar',
+          description: 'Earnings, dividends, splits',
+          action: () => {
+            if (selectedSymbol) {
+              setActiveHelper('companyCalendar');
+              setHelperContext({ symbol: selectedSymbol, source: 'panel' });
             }
           }
         },
@@ -405,6 +416,12 @@ const AssistantPanel = () => {
                   handleHelperAction(action, data);
                 }
               }}
+            />
+          )}
+          {activeHelper === 'companyCalendar' && (
+            <CompanyCalendarHelper
+              context={helperContext as any}
+              onClose={clearHelper}
             />
           )}
         </Suspense>
@@ -626,6 +643,9 @@ const AssistantPanel = () => {
                     setHelperContext({ symbol: selectedSymbol, source: 'panel' });
                   } else if (action === 'setAlert') {
                     console.log('Set alert for:', selectedSymbol);
+                  } else if (action === 'companyCalendar') {
+                    setActiveHelper('companyCalendar');
+                    setHelperContext({ symbol: selectedSymbol, source: 'panel' });
                   } else if (action === 'addWatchlist') {
                     console.log('Add to watchlist:', selectedSymbol);
                   }
