@@ -27,15 +27,17 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   const [direction, setDirection] = useState<'gainers'|'losers'|'both'>(context?.params?.direction || 'both');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // Manual refresh token to force re-fetch and enable server force_refresh
+  const [refreshToken, setRefreshToken] = useState(0);
 
   // Fetchers per kind
   // Infinite movers (gainers/losers/both). Backend supports limit; we grow limit progressively.
   const moversQuery = useInfiniteQuery({
-    queryKey: ['listHelper', 'movers', direction],
+    queryKey: ['listHelper', 'movers', direction, refreshToken],
     queryFn: async ({ pageParam = PAGE_SIZE }) => {
       // Server validates limit <= 20 -> cap to MOVERS_API_LIMIT
       const limit = Math.min(Number(pageParam) || PAGE_SIZE, MOVERS_API_LIMIT);
-      const res = await api.screener.getTopMovers({ direction, limit, include_otc: false, force_refresh: false });
+      const res = await api.screener.getTopMovers({ direction, limit, include_otc: false, force_refresh: refreshToken > 0 });
       return { limit, data: res };
     },
     initialPageParam: PAGE_SIZE,
@@ -92,15 +94,23 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
       const pages = moversQuery.data?.pages || [];
       // Use last page since each page grows the limit; but to be safe, take the last data set
       const last = pages[pages.length - 1]?.data || { gainers: [], losers: [] };
-      const g = last.gainers || [];
-      const l = last.losers || [];
-      const base = direction === 'gainers' ? g : direction === 'losers' ? l : [...g, ...l];
+      // Normalize and sort gainers/losers
+      const g = (last.gainers || []).slice();
+      const l = (last.losers || []).slice();
+      const pct = (r: any) => Number(r.changePercent ?? r.change ?? 0);
+      g.sort((a: any, b: any) => pct(b) - pct(a)); // biggest winners first
+      l.sort((a: any, b: any) => pct(a) - pct(b)); // biggest losers first
+      const base = direction === 'gainers' 
+        ? g 
+        : direction === 'losers' 
+          ? l 
+          : [...g, ...l].sort((a, b) => Math.abs(pct(b)) - Math.abs(pct(a))); // strongest moves overall
       // Normalize fields and de-dup by symbol
       const mapped = base.map((it: any) => ({
         symbol: it.symbol,
         name: it.name,
-        price: it.price,
-        changePercent: it.change_percent ?? it.changePercent,
+        price: Number(it.price ?? it.last ?? 0),
+        changePercent: Number(it.change_percent ?? it.changePercent ?? it.change ?? 0),
       }));
       const seen = new Set<string>();
       return mapped.filter((r) => (r.symbol && !seen.has(r.symbol) ? (seen.add(r.symbol), true) : false));
@@ -235,7 +245,10 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
   const onRefresh = async () => {
     setIsRefreshing(true);
     try {
-      if (kind === 'movers') await moversQuery.refetch();
+      if (kind === 'movers') {
+        // Bump token to force refresh and bypass any caches
+        setRefreshToken((t) => t + 1);
+      }
       if (kind === 'watchlist') await watchlistQuery.refetch();
       if (kind === 'opportunities') await oppsQuery.refetch();
     } finally {
