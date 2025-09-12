@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, RefreshCw } from 'lucide-react';
+import { X, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { sigmatiqTheme } from '../../styles/sigmatiq-theme';
 import { api } from '../../api/client';
@@ -290,45 +290,6 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
           <h2 className="text-lg font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
             {title}
           </h2>
-          {kind === 'movers' && (
-            <div className="ml-2 flex items-center gap-2">
-              {[{id:'gainers',label:'G'}, {id:'losers',label:'L'}, {id:'both',label:'All'}].map(({id,label}) => (
-                <button key={id}
-                  onClick={() => setDirection(id as any)}
-                  className="px-2 py-1 rounded text-xs"
-                  style={{
-                    backgroundColor: (direction === id) ? sigmatiqTheme.colors.primary.teal + '20' : 'transparent',
-                    color: (direction === id) ? sigmatiqTheme.colors.primary.teal : sigmatiqTheme.colors.text.secondary,
-                    border: `1px solid ${(direction === id) ? sigmatiqTheme.colors.primary.teal + '40' : sigmatiqTheme.colors.border.default}`
-                  }}>
-                  {label}
-                </button>
-              ))}
-              {/* Sort controls */}
-              <select
-                aria-label="Sort by"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
-                className="text-xs px-2 py-1 rounded border"
-                style={{ borderColor: sigmatiqTheme.colors.border.default, background: 'transparent', color: sigmatiqTheme.colors.text.secondary }}
-              >
-                <option value="change">Change %</option>
-                <option value="abs_change">Abs Change %</option>
-                <option value="price">Price</option>
-                <option value="symbol">Symbol</option>
-              </select>
-              <select
-                aria-label="Sort order"
-                value={sortDir}
-                onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}
-                className="text-xs px-2 py-1 rounded border"
-                style={{ borderColor: sigmatiqTheme.colors.border.default, background: 'transparent', color: sigmatiqTheme.colors.text.secondary }}
-              >
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
-              </select>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onRefresh} className="p-2 rounded" style={{ color: sigmatiqTheme.colors.text.secondary }}>
@@ -339,6 +300,52 @@ const ListHelper: React.FC<ListHelperProps> = ({ context, onClose, onAction }) =
           </button>
         </div>
       </div>
+
+      {/* Controls row for movers: direction + sort buttons */}
+      {kind === 'movers' && (
+        <div className="px-4 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${sigmatiqTheme.colors.border.default}` }}>
+          <div className="flex items-center gap-2">
+            {[{id:'gainers',label:'G'}, {id:'losers',label:'L'}, {id:'both',label:'ALL'}].map(({id,label}) => (
+              <button key={id}
+                onClick={() => setDirection(id as any)}
+                className="px-2 py-1 rounded text-xs"
+                style={{
+                  backgroundColor: (direction === id) ? sigmatiqTheme.colors.primary.teal + '20' : 'transparent',
+                  color: (direction === id) ? sigmatiqTheme.colors.primary.teal : sigmatiqTheme.colors.text.secondary,
+                  border: `1px solid ${(direction === id) ? sigmatiqTheme.colors.primary.teal + '40' : sigmatiqTheme.colors.border.default}`
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {[{k:'change',label:'Chg%'},{k:'abs_change',label:'|Chg|%'},{k:'price',label:'Price'},{k:'symbol',label:'A→Z'}].map(({k,label}: any) => (
+              <button key={k}
+                onClick={() => setSortKey(k)}
+                className="px-2 py-1 rounded text-xs"
+                style={{
+                  backgroundColor: (sortKey === k) ? sigmatiqTheme.colors.primary.teal + '20' : 'transparent',
+                  color: (sortKey === k) ? sigmatiqTheme.colors.primary.teal : sigmatiqTheme.colors.text.secondary,
+                  border: `1px solid ${(sortKey === k) ? sigmatiqTheme.colors.primary.teal + '40' : sigmatiqTheme.colors.border.default}`
+                }}
+              >{label}</button>
+            ))}
+            <button
+              aria-label="Toggle sort order"
+              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+              className="px-2 py-1 rounded text-xs flex items-center gap-1"
+              style={{
+                backgroundColor: sigmatiqTheme.colors.background.primary,
+                border: `1px solid ${sigmatiqTheme.colors.border.default}`,
+                color: sigmatiqTheme.colors.text.secondary
+              }}
+            >
+              {sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              {sortDir.toUpperCase()}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4" style={{ overscrollBehavior: 'contain' }}>
