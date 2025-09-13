@@ -7,12 +7,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/core': {
-        target: 'http://localhost:8050',  // Core API (running via Assistant)
+        // Point to Core API (configurable via env)
+        target: process.env.VITE_CORE_PROXY_TARGET || 'http://localhost:8001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/core/, ''),
       },
       '/api/assistant': {
-        target: 'http://localhost:8050',  // Assistant API on same port
+        // Point to Assistant API (configurable via env)
+        target: process.env.VITE_ASSISTANT_PROXY_TARGET || 'http://localhost:8050',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/assistant/, '/assistant'),
       },
