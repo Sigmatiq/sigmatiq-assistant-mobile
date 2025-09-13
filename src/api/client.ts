@@ -18,6 +18,23 @@ const apiClient = axios.create({
   timeout: API_TIMEOUT,
 });
 
+// Attach cache metadata from response headers to returned data
+apiClient.interceptors.response.use((response) => {
+  try {
+    const h = response.headers || {} as Record<string, string>;
+    const hit = String(h['x-sigma-cache-hit'] || '').toLowerCase() === 'true';
+    const src = String(h['x-sigma-cache-source'] || '').toLowerCase() || undefined;
+    const ns = (h['x-sigma-cache-namespace'] as string) || undefined;
+    const reqId = (h['x-request-id'] as string) || (h['x-correlation-id'] as string) || undefined;
+    const meta = { isCache: hit, cacheSource: src, namespace: ns, requestId: reqId };
+    const data = response.data as any;
+    if (data && typeof data === 'object') {
+      Object.defineProperty(data, '__meta', { value: meta, enumerable: false, configurable: true });
+    }
+  } catch {}
+  return response;
+});
+
 // Helper function to build API paths
 const buildApiPath = (service: 'core' | 'assistant', path: string): string => {
   if (isDevelopment) {
