@@ -227,9 +227,9 @@ export const calendarApi = {
     return response.data || [];
   },
   getHolidays: async (opts?: { year?: number; month?: number; region?: string }) => {
-    const { year, month, region = (import.meta.env.VITE_REGION || 'US') } = opts || {};
+    const { year, region = (import.meta.env.VITE_REGION || 'US') } = opts || {};
     const response = await apiClient.get(buildApiPath('core', '/calendar/holidays'), {
-      params: { year, month, region }
+      params: { year, region }
     });
     return response.data || [];
   },
