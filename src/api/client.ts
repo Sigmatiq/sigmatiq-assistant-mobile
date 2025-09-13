@@ -221,21 +221,21 @@ export const assistantApi = {
 export const calendarApi = {
   getEconomicCalendar: async (opts?: { date?: string; region?: string }) => {
     const { date, region = (import.meta.env.VITE_REGION || 'US') } = opts || {};
-    const response = await apiClient.get(buildApiPath('assistant', '/calendar/economic'), {
+    const response = await apiClient.get(buildApiPath('core', '/calendar/economic'), {
       params: { date, region }
     });
     return response.data || [];
   },
   getHolidays: async (opts?: { year?: number; month?: number; region?: string }) => {
     const { year, month, region = (import.meta.env.VITE_REGION || 'US') } = opts || {};
-    const response = await apiClient.get(buildApiPath('assistant', '/calendar/holidays'), {
+    const response = await apiClient.get(buildApiPath('core', '/calendar/holidays'), {
       params: { year, month, region }
     });
     return response.data || [];
   },
   getCompanyCalendar: async (opts: { symbol: string; from?: string; to?: string; region?: string }) => {
     const { symbol, from, to, region = (import.meta.env.VITE_REGION || 'US') } = opts;
-    const response = await apiClient.get(buildApiPath('assistant', '/calendar/company'), {
+    const response = await apiClient.get(buildApiPath('core', '/calendar/company'), {
       params: { symbol, from, to, region }
     });
     return response.data || { earnings: [], dividends: [], splits: [] };
