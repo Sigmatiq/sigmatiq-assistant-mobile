@@ -133,34 +133,34 @@ export const screenerApi = {
 // Watchlist APIs
 export const watchlistApi = {
   list: async () => {
-    const response = await apiClient.get(buildApiPath('assistant', '/watchlists'));
+    const response = await apiClient.get(buildApiPath('core', '/watchlists'));
     return response.data;
   },
   
   create: async (data: { name: string; description?: string; is_default?: boolean }) => {
-    const response = await apiClient.post(buildApiPath('assistant', '/watchlists'), data);
+    const response = await apiClient.post(buildApiPath('core', '/watchlists'), data);
     return response.data;
   },
   
   get: async (watchlistId: string) => {
-    const response = await apiClient.get(buildApiPath('assistant', `/watchlists/${watchlistId}`));
+    const response = await apiClient.get(buildApiPath('core', `/watchlists/${watchlistId}`));
     return response.data;
   },
   
   getSnapshot: async (watchlistId: string, forceRefresh = false) => {
-    const response = await apiClient.get(buildApiPath('assistant', `/watchlists/${watchlistId}/snapshot`), {
+    const response = await apiClient.get(buildApiPath('core', `/watchlists/${watchlistId}/snapshot`), {
       params: { force_refresh: forceRefresh, detail: 'full' }
     });
     return response.data;
   },
   
   addSymbols: async (watchlistId: string, symbols: string[]) => {
-    const response = await apiClient.post(buildApiPath('assistant', `/watchlists/${watchlistId}/symbols`), { symbols });
+    const response = await apiClient.post(buildApiPath('core', `/watchlists/${watchlistId}/symbols`), { symbols });
     return response.data;
   },
   
   removeSymbol: async (watchlistId: string, symbol: string) => {
-    const response = await apiClient.delete(buildApiPath('assistant', `/watchlists/${watchlistId}/symbols/${symbol}`));
+    const response = await apiClient.delete(buildApiPath('core', `/watchlists/${watchlistId}/symbols/${symbol}`));
     return response.data;
   }
 };
