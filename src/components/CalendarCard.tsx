@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Calendar, Globe2 } from 'lucide-react';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
 import { calendarApi } from '../api/client';
+import CacheDot from './CacheDot';
+import { getMeta } from '../utils/meta';
 
 type Tab = 'economic' | 'holidays';
 
@@ -132,9 +134,12 @@ const CalendarCard: React.FC = () => {
     );
   };
 
+  const meta = tab === 'economic' ? getMeta(economicQ.data) : getMeta(holidaysQ.data);
   return (
-    <div className="rounded-xl p-4 border"
+    <div className="rounded-xl p-4 border relative"
       style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}>
+      {/* Cache provenance dot at top-left */}
+      <div className="absolute top-2 left-2"><CacheDot meta={meta} /></div>
       <div className="mb-2 text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>Calendar</div>
       {header}
       {tabRow}

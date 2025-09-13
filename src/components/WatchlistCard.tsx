@@ -6,6 +6,8 @@ import { sigmatiqTheme } from '../styles/sigmatiq-theme';
 import LoadingIndicator from './LoadingIndicator';
 import ErrorMessage from './ErrorMessage';
 import useAppStore from '../stores/useAppStore';
+import { getMeta } from '../utils/meta';
+import CacheDot from './CacheDot';
 
 interface WatchlistSymbol {
   symbol: string;
@@ -124,29 +126,24 @@ const WatchlistCard: React.FC = () => {
 
   return (
     <div 
-      className="rounded-xl p-4 border"
+      className="rounded-xl p-4 border relative"
       style={{ 
         backgroundColor: sigmatiqTheme.colors.background.secondary,
         borderColor: sigmatiqTheme.colors.background.primary 
       }}
     >
+      {/* Cache provenance dot at top-left */}
+      {watchlistData && (
+        <div className="absolute top-2 left-2">
+          <CacheDot meta={getMeta(watchlistData)} />
+        </div>
+      )}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Eye size={20} style={{ color: sigmatiqTheme.colors.text.accent }} />
           <h3 className="font-semibold text-base" style={{ color: sigmatiqTheme.colors.text.primary }}>
             Watchlist
           </h3>
-          {watchlistData?._cache_metadata?.source === 'cache' && (
-            <span 
-              className="text-xs px-1 py-0.5 rounded text-xs uppercase tracking-wider"
-              style={{ 
-                backgroundColor: sigmatiqTheme.colors.background.primary,
-                color: sigmatiqTheme.colors.text.tertiary 
-              }}
-            >
-              Cached
-            </span>
-          )}
         </div>
         <span className="text-[11px]" style={{ color: sigmatiqTheme.colors.text.muted }}>
           as of {new Date(dataUpdatedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
