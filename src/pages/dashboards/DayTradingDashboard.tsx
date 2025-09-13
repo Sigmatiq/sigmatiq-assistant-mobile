@@ -27,6 +27,8 @@ import { api, calendarApi } from '../../api/client';
 import WatchlistCard from '../../components/WatchlistCard';
 import { useFocusSymbolData } from '../../api/dashboardQueries';
 import useSwipe from '../../hooks/useSwipe';
+import CacheDot from '../../components/CacheDot';
+import { getMeta } from '../../utils/meta';
 
 /**
  * Day Trading Dashboard - Beginner Experience
@@ -196,6 +198,8 @@ const DayTradingDashboard: React.FC = () => {
           borderColor: sigmatiqTheme.colors.border.default 
         }}
       >
+          {/* Cache provenance */}
+          <div className="absolute top-2 left-2"><CacheDot meta={getMeta(breadthData)} /></div>
           <div
             className="p-4 border-b cursor-pointer select-none"
             style={{ borderColor: sigmatiqTheme.colors.border.default }}
@@ -423,10 +427,11 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* Top Gainers (mobile: full width; desktop: one third) */}
       <div 
-        className="rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
+        className="relative rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
         style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
         onClick={() => { setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'gainers' } }); }}
       >
+        <div className="absolute top-2 left-2"><CacheDot meta={getMeta(moversData)} /></div>
         <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -478,10 +483,11 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* Top Losers (mobile: full width; desktop: one third) */}
       <div 
-        className="rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
+        className="relative rounded-xl border md:col-span-6 lg:col-span-4 cursor-pointer"
         style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
         onClick={() => { setActiveHelper('list'); setHelperContext({ kind: 'movers', params: { direction: 'losers' } }); }}
       >
+        <div className="absolute top-2 left-2"><CacheDot meta={getMeta(moversData)} /></div>
         <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -538,9 +544,10 @@ const DayTradingDashboard: React.FC = () => {
       {/* Top Opportunities (half width on desktop) */}
       <div className="md:col-span-6 lg:col-span-6">
         <div 
-          className="rounded-xl border"
+          className="relative rounded-xl border"
           style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
         >
+          <div className="absolute top-2 left-2"><CacheDot meta={getMeta(opportunitiesData)} /></div>
           <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -608,12 +615,13 @@ const DayTradingDashboard: React.FC = () => {
       {/* Focus Symbol (wide on desktop) */}
       {selectedSymbol && (
         <div 
-          className="rounded-xl border md:col-span-6 lg:col-span-8"
+          className="relative rounded-xl border md:col-span-6 lg:col-span-8"
           style={{ 
             backgroundColor: sigmatiqTheme.colors.background.secondary,
             borderColor: sigmatiqTheme.colors.border.default 
           }}
         >
+            <div className="absolute top-2 left-2"><CacheDot meta={getMeta(focusData)} /></div>
             <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -710,9 +718,10 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* AI Insights (half width) */}
       <div
-        className="rounded-xl border md:col-span-6 lg:col-span-6"
+        className="relative rounded-xl border md:col-span-6 lg:col-span-6"
         style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
       >
+        <div className="absolute top-2 left-2"><CacheDot meta={getMeta(aiInsights)} /></div>
         <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
@@ -790,12 +799,13 @@ const DayTradingDashboard: React.FC = () => {
 
       {/* Today's Calendar */}
       <div 
-        className="rounded-xl border md:col-span-6 lg:col-span-6"
+        className="relative rounded-xl border md:col-span-6 lg:col-span-6"
         style={{ 
           backgroundColor: sigmatiqTheme.colors.background.secondary,
           borderColor: sigmatiqTheme.colors.border.default 
         }}
       >
+          <div className="absolute top-2 left-2"><CacheDot meta={getMeta(econQ.data)} /></div>
           <div className="p-4 border-b" style={{ borderColor: sigmatiqTheme.colors.border.default }}>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
