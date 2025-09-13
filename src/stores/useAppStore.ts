@@ -35,7 +35,7 @@ interface AppState {
   toggleMobileMenu: () => void;
   
   // Helper State
-  activeHelper: 'charting' | 'action' | 'learning' | 'stockInfo' | null;
+  activeHelper: 'charting' | 'action' | 'learning' | 'stockInfo' | 'calendar' | 'companyCalendar' | 'list' | 'assistant' | null;
   setActiveHelper: (helper: AppState['activeHelper']) => void;
   helperContext: {
     symbol?: string;

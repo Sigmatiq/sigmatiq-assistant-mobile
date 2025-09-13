@@ -233,10 +233,13 @@ export const calendarApi = {
     });
     return response.data || [];
   },
-  getCompanyCalendar: async (opts: { symbol: string; from?: string; to?: string; region?: string }) => {
-    const { symbol, from, to, region = (import.meta.env.VITE_REGION || 'US') } = opts;
+  getCompanyCalendar: async (opts: { symbol: string; from?: string; to?: string; start?: string; end?: string; region?: string }) => {
+    const { symbol, from, to, start, end, region = (import.meta.env.VITE_REGION || 'US') } = opts;
+    // Normalize params to Core API shape: start/end
+    const startDate = start || from;
+    const endDate = end || to;
     const response = await apiClient.get(buildApiPath('core', '/calendar/company'), {
-      params: { symbol, from, to, region }
+      params: { symbol, start: startDate, end: endDate, region }
     });
     return response.data || { earnings: [], dividends: [], splits: [] };
   }

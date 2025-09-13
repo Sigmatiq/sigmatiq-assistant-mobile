@@ -18,6 +18,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { sigmatiqTheme } from '../styles/sigmatiq-theme';
+import CalendarDetailHelper from './helpers/CalendarDetailHelper';
 import useAppStore from '../stores/useAppStore';
 
 // Lazy load helpers for better performance
@@ -420,6 +421,12 @@ const AssistantPanel = () => {
           )}
           {activeHelper === 'companyCalendar' && (
             <CompanyCalendarHelper
+              context={helperContext as any}
+              onClose={clearHelper}
+            />
+          )}
+          {activeHelper === 'calendar' && (
+            <CalendarDetailHelper
               context={helperContext as any}
               onClose={clearHelper}
             />

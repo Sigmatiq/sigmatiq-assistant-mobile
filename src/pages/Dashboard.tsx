@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, 
   MessageCircle, LineChart, AlertCircle, Zap, Search,
   Brain, Target, BookOpen, Calendar, Bell, ChevronRight,
-  ArrowUpRight, ArrowDownRight, Clock, Info, Eye,
+  ArrowUpRight, ArrowDownRight, Clock, Info, Eye, Maximize2,
   TrendingUp as TrendIcon, Filter, Download, Plus
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +16,8 @@ import ErrorMessage from '../components/ErrorMessage';
 import { api } from '../api/client';
 import { computeMarketStatus } from '../utils/marketStatus';
 import WatchlistCard from '../components/WatchlistCard';
+import CalendarDetailHelper from '../components/helpers/CalendarDetailHelper';
+import { calendarApi } from '../api/client';
 // Removed profile tiles (day/swing/options/invest) per request
 // Experience level selector removed per request
 
@@ -36,6 +38,23 @@ const Dashboard = () => {
     setHelperContext,
     tradingProfile
   } = useAppStore();
+  
+  // Today's Calendar mini-card state
+  const [showCalendarHelper, setShowCalendarHelper] = useState(false);
+  const today = new Date();
+  const todayISO = today.toISOString().slice(0, 10);
+  const region = (import.meta.env.VITE_REGION || 'US');
+  const econTodayQ = useQuery({
+    queryKey: ['todayCalendar', 'econ', todayISO, region],
+    queryFn: () => calendarApi.getEconomicCalendar({ date: todayISO, region }),
+    staleTime: 15 * 60 * 1000,
+  });
+  const holYearQ = useQuery({
+    queryKey: ['todayCalendar', 'hol', today.getFullYear(), region],
+    queryFn: () => calendarApi.getHolidays({ year: today.getFullYear(), region }),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+  const holidaysToday = (holYearQ.data || []).filter((h: any) => h.date === todayISO);
   
   // (Market status computation moved to ticker bar and store effect)
   
@@ -384,6 +403,54 @@ const Dashboard = () => {
 
         {/* Right Column - Market Movers */}
         <div className="space-y-4">
+          {/* Today's Calendar (mini) — moved to top for visibility */}
+          <div 
+            className="rounded-xl p-4 border"
+            style={{ 
+              backgroundColor: sigmatiqTheme.colors.background.secondary,
+              borderColor: sigmatiqTheme.colors.border.default 
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
+                Today's Calendar
+              </h3>
+              <button
+                onClick={() => setShowCalendarHelper(true)}
+                className="p-1 rounded hover:opacity-80"
+                aria-label="Open detailed calendar"
+                title="Open detailed calendar"
+                style={{ color: sigmatiqTheme.colors.text.secondary }}
+                data-testid="btn-expand-todays-calendar"
+              >
+                <ArrowUpRight className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Economic events */}
+            {econTodayQ.isLoading ? (
+              <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.secondary }}>Loading…</div>
+            ) : econTodayQ.error ? (
+              <div className="text-sm" style={{ color: sigmatiqTheme.colors.status.error }}>Unable to load economic events</div>
+            ) : (
+              <div className="space-y-1 mb-2">
+                {((econTodayQ.data || []) as any[]).slice(0,3).map((e: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: sigmatiqTheme.colors.text.muted }}>{e.time_local || e.time || '-'}</span>
+                    <span className="text-sm" style={{ color: sigmatiqTheme.colors.text.primary }}>{e.name || e.event || 'Event'}</span>
+                  </div>
+                ))}
+                {((econTodayQ.data || []) as any[]).length === 0 && (
+                  <div className="text-sm" style={{ color: sigmatiqTheme.colors.text.muted }}>No events</div>
+                )}
+              </div>
+            )}
+            {/* Holidays today */}
+            {holYearQ.isLoading ? null : holidaysToday.length > 0 && (
+              <div className="text-xs" style={{ color: sigmatiqTheme.colors.text.secondary }}>
+                Holiday: {holidaysToday.map((h: any) => h.name).join(', ')}
+              </div>
+            )}
+          </div>
           {/* Top Gainers */}
           <div 
             className="rounded-xl p-4 border"
@@ -450,6 +517,7 @@ const Dashboard = () => {
             )}
           </div>
 
+
           {/* Watchlist */}
           <WatchlistCard />
         </div>
@@ -507,9 +575,10 @@ const Dashboard = () => {
         />
       </div>
       </>
-      )}
-      </div>
-    </div>
+            )}
+          </div>
+
+        </div>
   );
 };
 
@@ -546,6 +615,18 @@ const MarketIndexCard = ({ name, value, change, changePercent }: any) => {
       }}>
         {isPositive ? '+' : ''}{displayChange} ({isPositive ? '+' : ''}{displayPercent}%)
       </div>
+
+      {/* Calendar helper overlay */}
+      {showCalendarHelper && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowCalendarHelper(false)} />
+          <div className="absolute inset-0 md:inset-8 rounded-lg overflow-hidden border"
+            style={{ backgroundColor: sigmatiqTheme.colors.background.secondary, borderColor: sigmatiqTheme.colors.border.default }}
+          >
+            <CalendarDetailHelper onClose={() => setShowCalendarHelper(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

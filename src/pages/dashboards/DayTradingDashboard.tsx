@@ -801,7 +801,19 @@ const DayTradingDashboard: React.FC = () => {
               <h3 className="text-base font-semibold" style={{ color: sigmatiqTheme.colors.text.primary }}>
                 Today's Calendar
               </h3>
-              <Clock className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
+              <button
+                onClick={() => {
+                  setActiveHelper('calendar');
+                  setHelperContext({ date: todayISO, tab: 'economic' });
+                }}
+                className="p-1 rounded hover:opacity-80"
+                aria-label="Open detailed calendar"
+                title="Open detailed calendar"
+                data-testid="btn-expand-todays-calendar"
+                style={{ color: sigmatiqTheme.colors.text.secondary }}
+              >
+                <ArrowUpRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
           <div ref={calendarRef} className="p-4 space-y-3 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
@@ -864,7 +876,9 @@ const DayTradingDashboard: React.FC = () => {
                 Alerts Inbox
               </h3>
               <Bell className="w-4 h-4" style={{ color: sigmatiqTheme.colors.text.muted }} />
-            </div>
+      </div>
+
+      {/* Calendar helper now routed via AssistantPanel (activeHelper='calendar') */}
           </div>
           <div ref={alertsRef} className="p-4 thin-scrollbar auto-hide-scrollbar" style={{ maxHeight: '18rem', overflowY: 'auto' }}>
             <ErrorMessage error="Alerts are not wired to backend yet" />
