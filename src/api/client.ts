@@ -34,7 +34,7 @@ export const marketApi = {
   // Get market breadth (advancing/declining stocks)
   getMarketBreadth: async (opts?: { includeSymbols?: boolean; presetId?: string; timeframe?: string; cap?: number }) => {
     const { includeSymbols = false, presetId = 'sp500', timeframe = 'day', cap = 50 } = opts || {};
-    const response = await apiClient.get(buildApiPath('assistant', '/market/breadth'), {
+    const response = await apiClient.get(buildApiPath('core', '/market/breadth'), {
       params: { preset_id: presetId, timeframe, cap, include_symbols: includeSymbols },  // Include lists optionally
       timeout: 25000  // 25 second timeout for initial breadth calculation
     });
@@ -43,7 +43,7 @@ export const marketApi = {
 
   // Get market summary for specific symbols
   getMarketSummary: async (symbols: string[]) => {
-    const response = await apiClient.get(buildApiPath('assistant', '/market/summary'), {
+    const response = await apiClient.get(buildApiPath('core', '/market/summary'), {
       params: { symbols: symbols.join(','), cap: 10 }
     });
     // Core/Assistant returns a list of summaries; normalize to { [symbol]: { price, changePercent } }
@@ -112,7 +112,7 @@ export const screenerApi = {
   // Get top movers from Polygon market movers endpoint
   getTopMovers: async (opts?: { direction?: 'gainers' | 'losers' | 'both'; limit?: number; include_otc?: boolean; force_refresh?: boolean; }) => {
     const { direction = 'both', limit = 5, include_otc = false, force_refresh = false } = opts || {};
-    const response = await apiClient.get(buildApiPath('assistant', '/market/movers'), {
+    const response = await apiClient.get(buildApiPath('core', '/market/movers'), {
       params: { direction, limit, include_otc, force_refresh }
     });
 
